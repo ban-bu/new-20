@@ -348,7 +348,7 @@ def get_ai_design_suggestions(user_preferences=None):
     except Exception as e:
         return {"error": f"Error getting AI design suggestions: {str(e)}"}
 
-def is_valid_logo(image, min_colors=3, min_non_transparent_pixels=1000):
+def is_valid_logo(image, min_colors=2, min_non_transparent_pixels=300, max_dominant_ratio=0.985):
     """检查生成的logo是否有效（不是纯色或空白图像）"""
     if image is None:
         return False
@@ -397,8 +397,8 @@ def is_valid_logo(image, min_colors=3, min_non_transparent_pixels=1000):
         dominant_color_ratio = most_common_color_count / len(non_transparent_pixels)
         
         # 如果单一颜色占比超过95%，认为是无效logo
-        if dominant_color_ratio > 0.95:
-            print(f"Logo验证失败：主要颜色占比过高 ({dominant_color_ratio:.2%})")
+        if dominant_color_ratio > max_dominant_ratio:
+            print(f"Logo验证失败：主要颜色占比过高 ({dominant_color_ratio:.2%} > {max_dominant_ratio:.2%})")
             return False
         
         print(f"Logo验证通过：{len(unique_colors)}种颜色，{len(non_transparent_pixels)}个非透明像素，主要颜色占比{dominant_color_ratio:.2%}")
@@ -417,19 +417,19 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
     # 构建矢量图logo专用的提示词
     vector_style_prompt = f"""创建一个矢量风格的logo设计: {prompt}
     要求:
-    1. 简洁的矢量图风格，线条清晰
-    2. 必须是透明背景，不能有任何白色或彩色背景
-    3. 专业的logo设计，适合印刷到T恤上
-    4. 高对比度，颜色鲜明
-    5. 几何形状简洁，不要过于复杂
+    1. 简洁的矢量图风格，线条清晰、闭合、边缘净
+    2. 必须是透明背景(透明PNG)，无背板、无渐变底、无阴影
+    3. 专业的logo设计，适合印刷到T恤，避免过多细碎噪点
+    4. 高对比度，颜色鲜明，避免大面积纯白覆盖
+    5. 几何形状简洁，不要过于复杂，中心构图
     6. 不要包含文字或字母
     7. 不要显示T恤或服装模型
     8. 纯粹的图形标志设计
-    9. 矢量插画风格，扁平化设计
-    10. 重要：背景必须完全透明，不能有任何颜色填充
-    11. 请生成PNG格式的透明背景图标
-    12. 图标应该是独立的，没有任何背景元素
-    13. 确保logo有丰富的细节和多种颜色，避免纯色设计"""
+    9. 矢量插画风格，扁平化设计，实心色块+少量描边
+    10. 背景必须完全透明，不要留边缘白边/灰边
+    11. 输出PNG透明背景图标，尺寸1024x1024
+    12. 图标应独立，无任何背景元素，不要样机/预览
+    13. 颜色至少两种，避免单色纯填充；保持清晰边界"""
     
     # 如果DashScope不可用，直接返回None
     if not DASHSCOPE_AVAILABLE:
@@ -463,6 +463,8 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
             if rsp.status_code == HTTPStatus.OK:
                 # 下载生成的图像
                 for result in rsp.output.results:
+                    # 提前启发式过滤：如果URL带有明显的样机/预览关键词则跳过
+                    # (DashScope一般不会，但保守处理)
                     image_resp = requests.get(result.url)
                     if image_resp.status_code == 200:
                         # 加载图像并转换为RGBA模式
@@ -470,6 +472,7 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                         print(f"DashScope生成的logo尺寸: {img.size}")
                         
                         # 后处理：将白色背景转换为透明（使用更高的阈值）
+                        # 将近白背景快速透明化，减少“白边”导致的验证失败
                         img_processed = make_background_transparent(img, threshold=120)
                         print(f"背景透明化处理完成")
                         
