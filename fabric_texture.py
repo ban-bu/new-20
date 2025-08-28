@@ -2,6 +2,17 @@ from PIL import Image, ImageDraw, ImageFilter, ImageChops, ImageOps
 import os
 import numpy as np
 import random
+from datetime import datetime
+import threading
+import time
+
+def log(message: str) -> None:
+    try:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        thread_name = threading.current_thread().name
+        print(f"[{now}] [thread={thread_name}] {message}", flush=True)
+    except Exception:
+        print(message, flush=True)
 
 def generate_fabric_texture(image, fabric_type, intensity=0.5):
     """
@@ -15,6 +26,7 @@ def generate_fabric_texture(image, fabric_type, intensity=0.5):
     返回:
     应用了纹理的图像
     """
+    t0 = time.time()
     width, height = image.size
     
     # 根据面料类型调整纹理强度
@@ -54,6 +66,7 @@ def generate_fabric_texture(image, fabric_type, intensity=0.5):
         avg_brightness = brightness_sum / sample_count
         # 根据平均亮度决定是否是深色T恤
         is_dark_shirt = avg_brightness < 128
+    log(f"fabric pre-analysis samples={sample_count}")
     
     # 创建纹理图像（透明）
     texture = Image.new("RGBA", (width, height), (0, 0, 0, 0))
@@ -139,10 +152,12 @@ def generate_fabric_texture(image, fabric_type, intensity=0.5):
     
     # 减少模糊程度，使纹理更加锐利
     texture = texture.filter(ImageFilter.GaussianBlur(radius=0.5))
+    log("fabric texture layer1 built")
     
     # 创建两个纹理图层，增加视觉深度
     texture2 = texture.copy()
     texture2 = texture2.filter(ImageFilter.GaussianBlur(radius=1.5))
+    log("fabric texture layer2 built")
     
     # 创建保存原图像的副本
     result = image.copy()
@@ -261,6 +276,7 @@ def generate_fabric_texture(image, fabric_type, intensity=0.5):
     
     # 将原始边缘区域粘贴回结果图像，完全覆盖可能受到纹理影响的边缘
     result.paste(edge_region, (0, 0), edge_mask)
+    log(f"fabric texture composed elapsed_ms={(time.time()-t0)*1000:.1f}")
     
     return result
 
@@ -306,7 +322,8 @@ def apply_fabric_texture(image, fabric_type, intensity=0.5):
                     textured_pixel = textured_image.getpixel((x, y))
                     final_image.putpixel((x, y), textured_pixel)
         
+        log("apply_fabric_texture done")
         return final_image
     except Exception as e:
-        print(f"应用纹理时出错: {e}")
+        log(f"应用纹理时出错: {e}")
         return image  # 如果出错，返回原始图像

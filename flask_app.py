@@ -491,6 +491,7 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
     print("Error: Logo生成失败，请检查网络连接或稍后重试。")
     return None
 
+@log_step("change_shirt_color")
 def change_shirt_color(image, color_hex, apply_texture=False, fabric_type=None):
     """Change T-shirt color with optional fabric texture"""
     # 转换十六进制颜色为RGB
@@ -519,10 +520,14 @@ def change_shirt_color(image, color_hex, apply_texture=False, fabric_type=None):
     
     # 更新图像数据
     colored_image.putdata(new_data)
+    log("change_shirt_color recolor done")
     
     # 如果需要应用纹理
     if apply_texture and fabric_type:
-        return apply_fabric_texture(colored_image, fabric_type)
+        log(f"apply_fabric_texture START fabric={fabric_type}")
+        textured = apply_fabric_texture(colored_image, fabric_type)
+        log("apply_fabric_texture END")
+        return textured
     
     return colored_image
 
@@ -732,6 +737,7 @@ def generate_single_design(design_index, design_prompt):
         
         # 完整的独立流程 - 每个设计独立获取AI建议、生成图片，确保颜色一致性
         # 使用独立提示词生成完全不同的设计
+        log(f"generate_single_design 调用 generate_complete_design index={design_index}")
         design, info = generate_complete_design(varied_prompt)
         
         # 添加设计索引到信息中以便排序
