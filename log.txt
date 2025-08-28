@@ -1,0 +1,680 @@
+Starting Container
+
+ * Serving Flask app 'flask_app'
+
+ * Debug mode: off
+
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+
+ * Running on all addresses (0.0.0.0)
+
+ * Running on http://127.0.0.1:8080
+
+ * Running on http://10.250.13.249:8080
+
+Press CTRL+C to quit
+
+100.64.0.2 - - [28/Aug/2025 12:57:22] "GET / HTTP/1.1" 200 -
+
+100.64.0.2 - - [28/Aug/2025 12:57:22] "GET /static/images/white_shirt_placeholder.png HTTP/1.1" 404 -
+
+100.64.0.2 - - [28/Aug/2025 12:57:22] "GET /static/css/style.css HTTP/1.1" 200 -
+
+100.64.0.2 - - [28/Aug/2025 12:57:24] "GET /favicon.ico HTTP/1.1" 404 -
+
+100.64.0.2 - - [28/Aug/2025 12:58:36] "GET /static/css/style.css HTTP/1.1" 304 -
+
+使用DashScope API密钥: sk-51a3e204ed83484db...12d81c143e
+
+开始生成logo: A bold, forward-leaning chevron arrow integrated with a minimalist circular badge; a speed line cuts through to evoke motion and acceleration.
+
+----第1次尝试使用DashScope生成矢量logo，提示词: 创建一个矢量风格的logo设计: Create a professional vector logo design: A bold, forward-leaning chevron arrow integrated with a minimalist circular badge; a speed line cuts through to evoke motion and acceleration.. 
+
+            Requirements: 
+
+            1. Simple professional design
+
+            2. IMPORTANT: Transparent background (PNG format)
+
+            3. Clear and distinct graphic with high contrast
+
+            4. Vector-style illustration suitable for T-shirt printing
+
+            5. Must not include any text, numbers or color name, only logo graphic
+
+            6. IMPORTANT: Do NOT include any mockups or product previews
+
+            7. IMPORTANT: Create ONLY the logo graphic itself
+
+            8. NO META REFERENCES - do not show the logo applied to anything
+
+            9. Design should be a standalone graphic symbol/icon only
+
+            10. CRITICAL: Clean vector art style with crisp lines and solid colors
+
+            11. Ensure rich details and multiple colors to avoid solid color designs
+
+    要求:
+
+    1. 简洁的矢量图风格，线条清晰
+
+    2. 必须是透明背景，不能有任何白色或彩色背景
+
+    3. 专业的logo设计，适合印刷到T恤上
+
+    4. 高对比度，颜色鲜明
+
+    5. 几何形状简洁，不要过于复杂
+
+    6. 不要包含文字或字母
+
+    7. 不要显示T恤或服装模型
+
+    8. 纯粹的图形标志设计
+
+    9. 矢量插画风格，扁平化设计
+
+    10. 重要：背景必须完全透明，不能有任何颜色填充
+
+    11. 请生成PNG格式的透明背景图标
+
+    12. 图标应该是独立的，没有任何背景元素
+
+    13. 确保logo有丰富的细节和多种颜色，避免纯色设计----
+
+使用DashScope API密钥: sk-3f579673c4724c06a...0246c2c90e
+
+开始生成logo: A circular emblem featuring a multi-color paint splash arranged in a radiant sunburst with overlapping translucent petals in bright magenta, teal, yellow, and lime
+
+----第1次尝试使用DashScope生成矢量logo，提示词: 创建一个矢量风格的logo设计: Create a professional vector logo design: A circular emblem featuring a multi-color paint splash arranged in a radiant sunburst with overlapping translucent petals in bright magenta, teal, yellow, and lime. 
+
+            Requirements: 
+
+            1. Simple professional design
+
+            2. IMPORTANT: Transparent background (PNG format)
+
+            3. Clear and distinct graphic with high contrast
+
+            4. Vector-style illustration suitable for T-shirt printing
+
+            5. Must not include any text, numbers or color name, only logo graphic
+
+            6. IMPORTANT: Do NOT include any mockups or product previews
+
+            7. IMPORTANT: Create ONLY the logo graphic itself
+
+            8. NO META REFERENCES - do not show the logo applied to anything
+
+            9. Design should be a standalone graphic symbol/icon only
+
+            10. CRITICAL: Clean vector art style with crisp lines and solid colors
+
+            11. Ensure rich details and multiple colors to avoid solid color designs
+
+    要求:
+
+    1. 简洁的矢量图风格，线条清晰
+
+    2. 必须是透明背景，不能有任何白色或彩色背景
+
+    3. 专业的logo设计，适合印刷到T恤上
+
+    4. 高对比度，颜色鲜明
+
+    5. 几何形状简洁，不要过于复杂
+
+    6. 不要包含文字或字母
+
+    7. 不要显示T恤或服装模型
+
+    8. 纯粹的图形标志设计
+
+    9. 矢量插画风格，扁平化设计
+
+    10. 重要：背景必须完全透明，不能有任何颜色填充
+
+    11. 请生成PNG格式的透明背景图标
+
+    12. 图标应该是独立的，没有任何背景元素
+
+    13. 确保logo有丰富的细节和多种颜色，避免纯色设计----
+
+使用DashScope API密钥: sk-4ff1a99e019d4a25b...2e716a55d5
+
+开始生成logo: A bold, angular monogram that interlocks the letters D, F, G, and S into a compact emblem. Thick, geometric strokes with a subtle circular badge and faint street-grid background lines for an urban, spray-paint vibe.
+
+----第1次尝试使用DashScope生成矢量logo，提示词: 创建一个矢量风格的logo设计: Create a professional vector logo design: A bold, angular monogram that interlocks the letters D, F, G, and S into a compact emblem. Thick, geometric strokes with a subtle circular badge and faint street-grid background lines for an urban, spray-paint vibe.. 
+
+            Requirements: 
+
+            1. Simple professional design
+
+            2. IMPORTANT: Transparent background (PNG format)
+
+            3. Clear and distinct graphic with high contrast
+
+            4. Vector-style illustration suitable for T-shirt printing
+
+            5. Must not include any text, numbers or color name, only logo graphic
+
+            6. IMPORTANT: Do NOT include any mockups or product previews
+
+            7. IMPORTANT: Create ONLY the logo graphic itself
+
+            8. NO META REFERENCES - do not show the logo applied to anything
+
+            9. Design should be a standalone graphic symbol/icon only
+
+            10. CRITICAL: Clean vector art style with crisp lines and solid colors
+
+            11. Ensure rich details and multiple colors to avoid solid color designs
+
+    要求:
+        5. 几何形状简洁，不要过于复杂
+
+    6. 不要包含文字或字母
+
+    7. 不要显示T恤或服装模型
+
+    8. 纯粹的图形标志设计
+
+    9. 矢量插画风格，扁平化设计
+
+    10. 重要：背景必须完全透明，不能有任何颜色填充
+
+    11. 请生成PNG格式的透明背景图标
+
+    12. 图标应该是独立的，没有任何背景元素
+
+    13. 确保logo有丰富的细节和多种颜色，避免纯色设计----
+
+使用DashScope API密钥: sk-88a12822ab324befb...182cf84940
+
+DashScope响应: {"status_code": 200, "request_id": "f2fdab09-34bb-90b3-a63c-7d32a75931e2", "code": null, "message": "", "output": {"task_id": "97d8b738-e676-4734-ab7a-b135874124de", "task_status": "SUCCEEDED", "results": [{"url": "https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/1d/3c/20250828/5688031c/6e3419fe-81f0-4600-8924-3091b50f697a-1-1.png?Expires=1756472357&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=LbdRr8BXdp%2FCPAmpzJjEKnrRT%2Fo%3D";, "orig_prompt": "创建一个矢量风格的logo设计: Create a professional vector logo design: A circular, hand-stamped seal featuring a minimalist hammer and a leaf motif, with a rough-edged texture to evoke artisanal craft.. \n            Requirements: \n            1. Simple professional design\n            2. IMPORTANT: Transparent background (PNG format)\n            3. Clear and distinct graphic with high contrast\n            4. Vector-style illustration suitable for T-shirt printing\n            5. Must not include any text, numbers or color name, only logo graphic\n            6. IMPORTANT: Do NOT include any mockups or product previews\n            7. IMPORTANT: Create ONLY the logo graphic itself\n            8. NO META REFERENCES - do not show the logo applied to anything\n            9. Design should be a standalone graph", "actual_prompt": "best quality, 矢量风格圆形徽章，手绘印章质感，极简主义铁锤与叶片图案结合，锤头与叶脉线条刚柔并济，边缘粗犷呈现匠艺手工感，高对比度单色构图，透明背景，线条干净利落，适合T恤印刷，无文字无装饰，纯粹图形标识。"}], "submit_time": "2025-08-28 20:59:07.756", "scheduled_time": "2025-08-28 20:59:07.815", "end_time": "2025-08-28 20:59:17.506", "task_metrics": {"TOTAL": 1, "SUCCEEDED": 1, "FAILED": 0}}, "usage": {"image_count": 1}}
+
+开始生成logo: A minimalist, interlocking DFGS monogram with clean, serif strokes and a subtle crest outline; designed to feel premium with a slender metallic accent (e.g., thin gold line).
+
+----第1次尝试使用DashScope生成矢量logo，提示词: 创建一个矢量风格的logo设计: Create a professional vector logo design: A minimalist, interlocking DFGS monogram with clean, serif strokes and a subtle crest outline; designed to feel premium with a slender metallic accent (e.g., thin gold line).. 
+
+            Requirements: 
+
+            1. Simple professional design
+
+            2. IMPORTANT: Transparent background (PNG format)
+
+            3. Clear and distinct graphic with high contrast
+
+            4. Vector-style illustration suitable for T-shirt printing
+
+            5. Must not include any text, numbers or color name, only logo graphic
+
+            6. IMPORTANT: Do NOT include any mockups or product previews
+
+            7. IMPORTANT: Create ONLY the logo graphic itself
+
+            8. NO META REFERENCES - do not show the logo applied to anything
+
+            9. Design should be a standalone graphic symbol/icon only
+
+            10. CRITICAL: Clean vector art style with crisp lines and solid colors
+
+            11. Ensure rich details and multiple colors to avoid solid color designs
+
+    要求:
+
+    1. 简洁的矢量图风格，线条清晰
+
+    2. 必须是透明背景，不能有任何白色或彩色背景
+
+    3. 专业的logo设计，适合印刷到T恤上
+
+    4. 高对比度，颜色鲜明
+
+    5. 几何形状简洁，不要过于复杂
+
+    6. 不要包含文字或字母
+
+    7. 不要显示T恤或服装模型
+
+    8. 纯粹的图形标志设计
+
+    9. 矢量插画风格，扁平化设计
+
+    10. 重要：背景必须完全透明，不能有任何颜色填充
+
+    11. 请生成PNG格式的透明背景图标
+
+    12. 图标应该是独立的，没有任何背景元素
+
+    13. 确保logo有丰富的细节和多种颜色，避免纯色设计----
+
+使用DashScope API密钥: sk-fc2dc196273342829...6faf8a6e64
+
+开始生成logo: A minimalist monogram that interlocks the letters D, F, G, and S into a single geometric glyph, using negative space to imply motion; scalable for embroidery or print.
+
+----第1次尝试使用DashScope生成矢量logo，提示词: 创建一个矢量风格的logo设计: Create a professional vector logo design: A minimalist monogram that interlocks the letters D, F, G, and S into a single geometric glyph, using negative space to imply motion; scalable for embroidery or print.. 
+
+            Requirements: 
+
+            1. Simple professional design
+
+            2. IMPORTANT: Transparent background (PNG format)
+
+            3. Clear and distinct graphic with high contrast
+
+            4. Vector-style illustration suitable for T-shirt printing
+
+            5. Must not include any text, numbers or color name, only logo graphic
+
+            6. IMPORTANT: Do NOT include any mockups or product previews
+
+            7. IMPORTANT: Create ONLY the logo graphic itself
+
+            8. NO META REFERENCES - do not show the logo applied to anything
+
+            9. Design should be a standalone graphic symbol/icon only
+
+            10. CRITICAL: Clean vector art style with crisp lines and solid colors
+
+            11. Ensure rich details and multiple colors to avoid solid color designs
+                9. 矢量插画风格，扁平化设计
+
+    10. 重要：背景必须完全透明，不能有任何颜色填充
+
+    11. 请生成PNG格式的透明背景图标
+
+    12. 图标应该是独立的，没有任何背景元素
+
+    13. 确保logo有丰富的细节和多种颜色，避免纯色设计----
+
+使用DashScope API密钥: sk-1a19e43ed59443ae8...41a194c17c
+
+开始生成logo: A minimalist geometric mark: a thin, hollow circle bisected by a straight vertical line to form a clean, versatile emblem.
+
+----第1次尝试使用DashScope生成矢量logo，提示词: 创建一个矢量风格的logo设计: Create a professional vector logo design: A minimalist geometric mark: a thin, hollow circle bisected by a straight vertical line to form a clean, versatile emblem.. 
+
+            Requirements: 
+
+            1. Simple professional design
+
+            2. IMPORTANT: Transparent background (PNG format)
+
+            3. Clear and distinct graphic with high contrast
+
+            4. Vector-style illustration suitable for T-shirt printing
+
+            5. Must not include any text, numbers or color name, only logo graphic
+
+            6. IMPORTANT: Do NOT include any mockups or product previews
+
+            7. IMPORTANT: Create ONLY the logo graphic itself
+
+            8. NO META REFERENCES - do not show the logo applied to anything
+
+            9. Design should be a standalone graphic symbol/icon only
+
+            10. CRITICAL: Clean vector art style with crisp lines and solid colors
+
+            11. Ensure rich details and multiple colors to avoid solid color designs
+
+    要求:
+
+    1. 简洁的矢量图风格，线条清晰
+
+    2. 必须是透明背景，不能有任何白色或彩色背景
+
+    3. 专业的logo设计，适合印刷到T恤上
+
+    4. 高对比度，颜色鲜明
+
+    5. 几何形状简洁，不要过于复杂
+
+    6. 不要包含文字或字母
+
+    7. 不要显示T恤或服装模型
+
+    8. 纯粹的图形标志设计
+
+    9. 矢量插画风格，扁平化设计
+
+    10. 重要：背景必须完全透明，不能有任何颜色填充
+
+    11. 请生成PNG格式的透明背景图标
+
+    12. 图标应该是独立的，没有任何背景元素
+
+    13. 确保logo有丰富的细节和多种颜色，避免纯色设计----
+
+使用DashScope API密钥: sk-787d18eec7c2403ca...595cfff038
+
+开始生成logo: A minimal monoline leaf silhouette encircling a gentle wave to symbolize nature and flow.
+
+----第1次尝试使用DashScope生成矢量logo，提示词: 创建一个矢量风格的logo设计: Create a professional vector logo design: A minimal monoline leaf silhouette encircling a gentle wave to symbolize nature and flow.. 
+
+            Requirements: 
+
+            1. Simple professional design
+
+            2. IMPORTANT: Transparent background (PNG format)
+
+            3. Clear and distinct graphic with high contrast
+
+            4. Vector-style illustration suitable for T-shirt printing
+
+            5. Must not include any text, numbers or color name, only logo graphic
+
+            6. IMPORTANT: Do NOT include any mockups or product previews
+
+            7. IMPORTANT: Create ONLY the logo graphic itself
+
+            8. NO META REFERENCES - do not show the logo applied to anything
+
+            9. Design should be a standalone graphic symbol/icon only
+
+            10. CRITICAL: Clean vector art style with crisp lines and solid colors
+
+            11. Ensure rich details and multiple colors to avoid solid color designs
+
+    要求:
+
+    1. 简洁的矢量图风格，线条清晰
+
+    2. 必须是透明背景，不能有任何白色或彩色背景
+
+    3. 专业的logo设计，适合印刷到T恤上
+
+    4. 高对比度，颜色鲜明
+
+    5. 几何形状简洁，不要过于复杂
+
+    6. 不要包含文字或字母
+
+    7. 不要显示T恤或服装模型
+
+    8. 纯粹的图形标志设计
+
+    9. 矢量插画风格，扁平化设计
+
+    10. 重要：背景必须完全透明，不能有任何颜色填充
+
+    11. 请生成PNG格式的透明背景图标
+
+    12. 图标应该是独立的，没有任何背景元素
+
+    13. 确保logo有丰富的细节和多种颜色，避免纯色设计----
+
+使用DashScope API密钥: sk-51a3e204ed83484db...12d81c143e
+
+开始生成logo: A minimalist hexagon with a subtle circuit pattern inside and a bold 'DFG' monogram at the center, glowing cyan.
+
+----第1次尝试使用DashScope生成矢量logo，提示词: 创建一个矢量风格的logo设计: Create a professional vector logo design: A minimalist hexagon with a subtle circuit pattern inside and a bold 'DFG' monogram at the center, glowing cyan.. 
+
+            Requirements: 
+
+            1. Simple professional design
+
+            2. IMPORTANT: Transparent background (PNG format)
+
+            3. Clear and distinct graphic with high contrast
+
+            4. Vector-style illustration suitable for T-shirt printing
+
+            5. Must not include any text, numbers or color name, only logo graphic
+
+            6. IMPORTANT: Do NOT include any mockups or product previews
+
+            7. IMPORTANT: Create ONLY the logo graphic itself
+
+            8. NO META REFERENCES - do not show the logo applied to anything
+
+            9. Design should be a standalone graphic symbol/icon only
+
+            10. CRITICAL: Clean vector art style with crisp lines and solid colors
+
+            11. Ensure rich details and multiple colors to avoid solid color designs
+
+    要求:
+    Logo验证通过：5327种颜色，280963个非透明像素，主要颜色占比57.82%
+
+Logo模式: RGBA, 有透明像素: True
+
+将透明背景logo应用到T恤位置: (308, 337)
+
+DashScope响应: {"status_code": 200, "request_id": "c7002b6c-ddda-9553-b45e-92d08d31121e", "code": null, "message": "", "output": {"task_id": "5364aaad-bb33-499b-bee4-aa8942dfffcd", "task_status": "SUCCEEDED", "results": [{"url": "https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/1d/23/20250828/5688031c/b17a96ec-6c21-47a9-ba90-14f700cd8b4c-1-1.png?Expires=1756472398&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=sw1VNmNtd5ZXam2jQTCtXpVqnt4%3D";, "orig_prompt": "创建一个矢量风格的logo设计: Create a professional vector logo design: A minimalist, interlocking DFGS monogram with clean, serif strokes and a subtle crest outline; designed to feel premium with a slender metallic accent (e.g., thin gold line).. \n            Requirements: \n            1. Simple professional design\n            2. IMPORTANT: Transparent background (PNG format)\n            3. Clear and distinct graphic with high contrast\n            4. Vector-style illustration suitable for T-shirt printing\n            5. Must not include any text, numbers or color name, only logo graphic\n            6. IMPORTANT: Do NOT include any mockups or product previews\n            7. IMPORTANT: Create ONLY the logo graphic itself\n            8. NO META REFERENCES - do not show the logo applied to anything\n      ", "actual_prompt": "best quality, 极简主义DFGS字母组合标志，采用精致衬线体结构，字母相互交错形成紧凑的几何图形。整体线条纤细流畅，搭配微曲的优雅衬线，中心融入若隐若现的盾形轮廓，增添低调奢华感。一处纤薄金属质感描边（如金线）贯穿部分结构，提升视觉层次却不夺主。设计高度抽象化，图形清晰、对比鲜明，矢量风格利于印刷，适合T恤等周边应用。透明背景，无文字、无装饰元素，专注呈现纯粹标志本体。"}], "submit_time": "2025-08-28 20:59:22.978", "scheduled_time": "2025-08-28 20:59:48.443", "end_time": "2025-08-28 20:59:58.889", "task_metrics": {"TOTAL": 1, "SUCCEEDED": 1, "FAILED": 0}}, "usage": {"image_count": 1}}
+
+DashScope响应: {"status_code": 200, "request_id": "aba85904-01e4-9aca-9afb-bd40cd3c63ec", "code": null, "message": "", "output": {"task_id": "f6ea40dd-7747-458d-8411-3368174f4c97", "task_status": "SUCCEEDED", "results": [{"url": "https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/1d/1f/20250828/5688031c/1b80ae95-6325-471a-8d41-4be3b67d2dcd-1-1.png?Expires=1756472401&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=s0SHUxy%2BFf1sBxrrRDnS7VdBJLY%3D";, "orig_prompt": "创建一个矢量风格的logo设计: Create a professional vector logo design: A minimalist raven-feather glyph intertwined with a subtle crescent, rendered in matte gunmetal gray.. \n            Requirements: \n            1. Simple professional design\n            2. IMPORTANT: Transparent background (PNG format)\n            3. Clear and distinct graphic with high contrast\n            4. Vector-style illustration suitable for T-shirt printing\n            5. Must not include any text, numbers or color name, only logo graphic\n            6. IMPORTANT: Do NOT include any mockups or product previews\n            7. IMPORTANT: Create ONLY the logo graphic itself\n            8. NO META REFERENCES - do not show the logo applied to anything\n            9. Design should be a standalone graphic symbol/icon only\n         ", "actual_prompt": "best quality, 矢量风格极简徽标设计：一支乌鸦羽毛图腾与新月相互缠绕，采用无光泽枪金属灰色调呈现，背景透明。整体构图干净利落，图形对比鲜明，线条精简流畅，具备高度识别性与印刷适应性，适合T恤等载体应用，纯图标设计，不含任何文字或装饰元素。"}], "submit_time": "2025-08-28 20:59:24.949", "scheduled_time": "2025-08-28 20:59:52.208", "end_time": "2025-08-28 21:00:02.048", "task_metrics": {"TOTAL": 1, "SUCCEEDED": 1, "FAILED": 0}}, "usage": {"image_count": 1}}
+
+DashScope生成的logo尺寸: (1024, 1024)
+
+检测到的背景颜色: RGB(237, 242, 238)
+
+透明化了 710735 个像素，占总像素的 67.8%
+
+背景透明化处理完成
+
+DashScope生成的logo尺寸: (1024, 1024)
+
+检测到的背景颜色: RGB(220, 224, 218)
+
+Logo验证通过：36338种颜色，337841个非透明像素，主要颜色占比46.91%
+
+Logo生成成功并通过验证（第1次尝试）
+
+Logo生成成功
+
+透明化了 838628 个像素，占总像素的 80.0%
+
+背景透明化处理完成
+
+Logo验证通过：36338种颜色，337841个非透明像素，主要颜色占比46.91%
+
+Logo验证通过：13780种颜色，209948个非透明像素，主要颜色占比32.68%
+
+Logo模式: RGBA, 有透明像素: True
+
+将透明背景logo应用到T恤位置: (308, 337)
+
+Logo生成成功并通过验证（第1次尝试）
+
+Logo生成成功
+
+DashScope响应: {"status_code": 200, "request_id": "17033854-1638-9bd4-b3ee-147412042a1f", "code": null, "message": "", "output": {"task_id": "282a5a7e-7c8b-4398-9344-56853df63994", "task_status": "SUCCEEDED", "results": [{"url": "https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/1d/fa/20250828/5688031c/90009a9a-2fb1-42f3-a761-1b43182949b9-1-1.png?Expires=1756472409&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=GXlCbrf7y2qDI2dSvU1eas3OKOs%3D";, "orig_prompt": "创建一个矢量风格的logo设计: Create a professional vector logo design: A freehand brushstroke forming a dynamic, circular badge with a subtle splash of electric purple, integrating a minimal, stylized 'dfgs' glyph.. \n            Requirements: \n            1. Simple professional design\n            2. IMPORTANT: Transparent background (PNG format)\n            3. Clear and distinct graphic with high contrast\n            4. Vector-style illustration suitable for T-shirt printing\n            5. Must not include any text, numbers or color name, only logo graphic\n            6. IMPORTANT: Do NOT include any mockups or product previews\n            7. IMPORTANT: Create ONLY the logo graphic itself\n            8. NO META REFERENCES - do not show the logo applied to anything\n            9. Design should be a sta", "actual_prompt": "best quality, 自由笔触勾勒出充满动感的圆形徽章，矢量风格呈现，电光紫点缀其中，低调却不失锋芒。中央融入极简抽象的“dfgs”字符设计，线条流畅且富有设计感，整体图形对比强烈、轮廓清晰，适合T恤印刷，透明背景，突出专业与现代感。"}], "submit_time": "2025-08-28 20:59:21.462", "scheduled_time": "2025-08-28 21:00:00.652", "end_time": "2025-08-28 21:00:10.228", "task_metrics": {"TOTAL": 1, "SUCCEEDED": 1, "FAILED": 0}}, "usage": {"image_count": 1}}
+
+Logo验证通过：13780种颜色，209948个非透明像素，主要颜色占比32.68%
+
+Logo模式: RGBA, 有透明像素: True
+
+将透明背景logo应用到T恤位置: (308, 337)
+
+DashScope响应: {"status_code": 200, "request_id": "12d91c03-5a21-9d73-819c-e18c4f037202", "code": null, "message": "", "output": {"task_id": "0f6dd847-4584-4220-8f01-4cbac3ae232a", "task_status": "SUCCEEDED", "results": [{"url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/9a/20250828/5ff4f6f9/9b51553d-1458-4b0f-b5a0-f7afc228999a-1-1.png?Expires=1756472417&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=PF%2FAgRRJrmS5OoseDMvjWDIBMXg%3D";, "orig_prompt": "创建一个矢量风格的logo设计: Create a professional vector logo design: Bold angular monogram of DFGS with a diagonal, shattered-glass slash through the letters; distressed texture.. \n            Requirements: \n            1. Simple professional design\n            2. IMPORTANT: Transparent background (PNG format)\n            3. Clear and distinct graphic with high contrast\n            4. Vector-style illustration suitable for T-shirt printing\n            5. Must not include any text, numbers or color name, only logo graphic\n            6. IMPORTANT: Do NOT include any mockups or product previews\n            7. IMPORTANT: Create ONLY the logo graphic itself\n            8. NO META REFERENCES - do not show the logo applied to anything\n            9. Design should be a standalone graphic symbol/icon only\n ", "actual_prompt": "best quality, 矢量风格logo设计，采用大胆几何化的DFGS字母单字母组合，整体结构硬朗锋利，具强烈视觉冲击力。一道对角线贯穿字母，形成如玻璃碎裂般的裂痕效果，增强动态与张力。字母边缘锐利，结合破损纹理，呈现出工业感与现代感并存的视觉风格。高对比度的黑白配色强化图形识别度，背景透明，便于多场景应用。整体设计简洁专业，适合印刷与缩放，兼具品牌识别性与装饰性，适用于T恤等载体。"}], "submit_time": "2025-08-28 20:59:27.111", "scheduled_time": "2025-08-28 21:00:03.983", "end_time": "2025-08-28 21:00:17.823", "task_metrics": {"TOTAL": 1, "SUCCEEDED": 1, "FAILED": 0}}, "usage": {"image_count": 1}}
+
+DashScope响应: {"status_code": 200, "request_id": "8af61324-9324-9b34-ac93-d6a710a3dbd9", "code": null, "message": "", "output": {"task_id": "c68fb107-8d15-4412-8e51-2341d4149983", "task_status": "SUCCEEDED", "results": [{"url": "https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/1d/46/20250828/5688031c/7ec2855d-67b4-4658-a536-96a1fa60aacf-1-1.png?Expires=1756472413&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=ypbEDMRbfx7ddqeauTC6Rq%2FljYE%3D";, "orig_prompt": "创建一个矢量风格的logo设计: Create a professional vector logo design: A refined monogram featuring interwoven letters D, F, G, S inside a minimalist circular badge; rendered in a classic serif type with a navy silhouette to convey professional and timeless appeal.. \n            Requirements: \n            1. Simple professional design\n            2. IMPORTANT: Transparent background (PNG format)\n            3. Clear and distinct graphic with high contrast\n            4. Vector-style illustration suitable for T-shirt printing\n            5. Must not include any text, numbers or color name, only logo graphic\n            6. IMPORTANT: Do NOT include any mockups or product previews\n            7. IMPORTANT: Create ONLY the logo graphic itself\n            8. NO META REFERENCES - do not show the logo applie", "actual_prompt": "best quality, 矢量风格的极简圆形徽章标志设计，徽章内由D、F、G、S四字母相互交织构成，采用经典衬线体字母造型，整体轮廓呈现深蓝色调，背景透明，对比强烈，图形清晰，适用于T恤印刷，风格专业且不失优雅，构图紧凑，线条流畅，具备高度识别性与延展性。"}], "submit_time": "2025-08-28 20:59:23.976", "scheduled_time": "2025-08-28 21:00:03.976", "end_time": "2025-08-28 21:00:13.822", "task_metrics": {"TOTAL": 1, "SUCCEEDED": 1, "FAILED": 0}}, "usage": {"image_count": 1}}
+
+DashScope生成的logo尺寸: (1024, 1024)
+
+检测到的背景颜色: RGB(39, 34, 42)
+
+透明化了 998497 个像素，占总像素的 95.2%
+
+背景透明化处理完成
+
+DashScope响应: {"status_code": 200, "request_id": "153cd54f-4b79-90cc-a896-3087ccdc2965", "code": null, "message": "", "output": {"task_id": "055ad981-0b8a-49f9-bfc1-f3cf80a38fb1", "task_status": "SUCCEEDED", "results": [{"url": "https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/1d/11/20250828/5688031c/fac8cb10-dffd-46c7-92e3-fb0c9d921d3e-1-1.png?Expires=1756472419&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=ssAS8PkcfPbj6WlHxOCPvdEnOt0%3D";, "orig_prompt": "创建一个矢量风格的logo设计: Create a professional vector logo design: Interlocking hexagon motif with negative-space triangles to form an abstract mark; clean and scalable.. \n            Requirements: \n            1. Simple professional design\n            2. IMPORTANT: Transparent background (PNG format)\n            3. Clear and distinct graphic with high contrast\n            4. Vector-style illustration suitable for T-shirt printing\n            5. Must not include any text, numbers or color name, only logo graphic\n            6. IMPORTANT: Do NOT include any mockups or product previews\n            7. IMPORTANT: Create ONLY the logo graphic itself\n            8. NO META REFERENCES - do not show the logo applied to anything\n            9. Design should be a standalone graphic symbol/icon only\n        ", "actual_prompt": "best quality, 抽象几何风格矢量logo设计，采用交错嵌套的六边形结构，通过负空间形成隐含三角形图案，整体造型极简而富有现代感。高对比度的黑白配色，确保图形清晰可辨，适合印刷与多场景应用。无文字、无背景，透明PNG格式输出，构图平衡且富有视觉张力，具备良好的延展性与识别度。"}], "submit_time": "2025-08-28 20:59:27.365", "scheduled_time": "2025-08-28 21:00:09.878", "end_time": "2025-08-28 21:00:19.920", "task_metrics": {"TOTAL": 1, "SUCCEEDED": 1, "FAILED": 0}}, "usage": {"image_count": 1}}
+
+DashScope生成的logo尺寸: (1024, 1024)
+
+检测到的背景颜色: RGB(226, 231, 227)
+
+Logo验证通过：25837种颜色，50079个非透明像素，主要颜色占比0.14%
+
+Logo生成成功并通过验证（第1次尝试）
+
+Logo生成成功
+
+Logo验证通过：25837种颜色，50079个非透明像素，主要颜色占比0.14%
+
+Logo模式: RGBA, 有透明像素: True
+
+将透明背景logo应用到T恤位置: (308, 337)
+
+透明化了 561565 个像素，占总像素的 53.6%
+
+背景透明化处理完成
+
+DashScope生成的logo尺寸: (1024, 1024)
+
+检测到的背景颜色: RGB(14, 8, 18)
+
+Logo验证通过：11424种颜色，487011个非透明像素，主要颜色占比56.79%
+
+Logo生成成功并通过验证（第1次尝试）
+
+Logo生成成功
+
+DashScope生成的logo尺寸: (1024, 1024)
+
+检测到的背景颜色: RGB(234, 239, 236)
+
+Logo验证通过：11424种颜色，487011个非透明像素，主要颜色占比56.79%
+
+Logo模式: RGBA, 有透明像素: True
+
+将透明背景logo应用到T恤位置: (308, 337)
+
+透明化了 1011031 个像素，占总像素的 96.4%
+
+背景透明化处理完成
+
+Logo验证通过：23549种颜色，37545个非透明像素，主要颜色占比0.06%
+
+Logo生成成功并通过验证（第1次尝试）
+
+Logo生成成功
+DashScope响应: {"status_code": 200, "request_id": "8be56911-58f9-95bd-896b-33d202cc1ddf", "code": null, "message": "", "output": {"task_id": "6ca19d29-39b3-45c4-a854-7eaed1d73749", "task_status": "SUCCEEDED", "results": [{"url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/48/20250828/5ff4f6f9/a370c808-495c-4fa5-9e15-cdb242827330-1-1.png?Expires=1756472426&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=ZPupgMSF%2FzowaSJ4w52zV9BSfMo%3D";, "orig_prompt": "创建一个矢量风格的logo设计: Create a professional vector logo design: A minimalist petal silhouette formed by a single curved line, evoking softness and femininity.. \n            Requirements: \n            1. Simple professional design\n            2. IMPORTANT: Transparent background (PNG format)\n            3. Clear and distinct graphic with high contrast\n            4. Vector-style illustration suitable for T-shirt printing\n            5. Must not include any text, numbers or color name, only logo graphic\n            6. IMPORTANT: Do NOT include any mockups or product previews\n            7. IMPORTANT: Create ONLY the logo graphic itself\n            8. NO META REFERENCES - do not show the logo applied to anything\n            9. Design should be a standalone graphic symbol/icon only\n            10. ", "actual_prompt": "best quality, 简约专业矢量风格logo设计：一片由单根曲线勾勒的极简花瓣轮廓，线条柔美流畅，呈现出柔和与女性气质。整体造型纯净抽象，高对比度黑白配色，图形清晰易识别，适合T恤印刷。单线闭合结构富有现代感，背景透明（PNG格式），无文字、数字或颜色名称，纯粹图形符号，独立呈现，无任何应用场景或样机预览。"}], "submit_time": "2025-08-28 20:59:26.085", "scheduled_time": "2025-08-28 21:00:13.538", "end_time": "2025-08-28 21:00:27.171", "task_metrics": {"TOTAL": 1, "SUCCEEDED": 1, "FAILED": 0}}, "usage": {"image_count": 1}}
+
+DashScope生成的logo尺寸: (1024, 1024)
+
+检测到的背景颜色: RGB(38, 76, 84)
+
+透明化了 1043754 个像素，占总像素的 99.5%
+
+背景透明化处理完成
+
+DashScope生成的logo尺寸: (1024, 1024)
+
+检测到的背景颜色: RGB(235, 240, 235)
+
+Logo验证通过：3738种颜色，4822个非透明像素，主要颜色占比1.76%
+
+Logo生成成功并通过验证（第1次尝试）
+
+Logo生成成功
+
+DashScope响应: {"status_code": 200, "request_id": "ee00bb3d-6382-94e8-b8ad-21123cb8fcca", "code": null, "message": "", "output": {"task_id": "5f431c98-615f-420d-84a4-0c0eec211b0a", "task_status": "SUCCEEDED", "results": [{"url": "https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/1d/ba/20250828/5688031c/1048f30f-e648-431f-b974-18df4d5fc279-1-1.png?Expires=1756472429&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=zB69S3WXiH64OXJXyygNIXriBV4%3D";, "orig_prompt": "创建一个矢量风格的logo设计: Create a professional vector logo design: A minimalist hexagon with a subtle circuit pattern inside and a bold 'DFG' monogram at the center, glowing cyan.. \n            Requirements: \n            1. Simple professional design\n            2. IMPORTANT: Transparent background (PNG format)\n            3. Clear and distinct graphic with high contrast\n            4. Vector-style illustration suitable for T-shirt printing\n            5. Must not include any text, numbers or color name, only logo graphic\n            6. IMPORTANT: Do NOT include any mockups or product previews\n            7. IMPORTANT: Create ONLY the logo graphic itself\n            8. NO META REFERENCES - do not show the logo applied to anything\n            9. Design should be a standalone graphic symbol/icon onl", "actual_prompt": "best quality, 极简主义六边形轮廓，内部融入精细的浅灰色电路纹理，中心嵌入发光氰蓝色“DFG”单字母组合，高对比度矢量图形，透明背景，适合印刷与数字媒介应用。"}], "submit_time": "2025-08-28 20:59:29.655", "scheduled_time": "2025-08-28 21:00:20.707", "end_time": "2025-08-28 21:00:29.992", "task_metrics": {"TOTAL": 1, "SUCCEEDED": 1, "FAILED": 0}}, "usage": {"image_count": 1}}
+
+Logo验证通过：3738种颜色，4822个非透明像素，主要颜色占比1.76%
+
+Logo模式: RGBA, 有透明像素: True
+
+将透明背景logo应用到T恤位置: (308, 337)
+
+DashScope生成的logo尺寸: (1024, 1024)
+
+检测到的背景颜色: RGB(236, 241, 236)
+
+透明化了 426137 个像素，占总像素的 40.6%
+
+背景透明化处理完成
+
+透明化了 962305 个像素，占总像素的 91.8%
+
+背景透明化处理完成
+
+Logo验证通过：5487种颜色，86271个非透明像素，主要颜色占比28.80%
+
+Logo生成成功并通过验证（第1次尝试）
+
+Logo生成成功
+
+Logo验证通过：34685种颜色，622439个非透明像素，主要颜色占比26.56%
+
+Logo生成成功并通过验证（第1次尝试）
+
+Logo生成成功
+
+Logo验证通过：5487种颜色，86271个非透明像素，主要颜色占比28.80%
+
+Logo模式: RGBA, 有透明像素: True
+
+将透明背景logo应用到T恤位置: (308, 337)
+
+Logo验证通过：34685种颜色，622439个非透明像素，主要颜色占比26.56%
+
+Logo模式: RGBA, 有透明像素: True
+
+将透明背景logo应用到T恤位置: (308, 337)
+
+DashScope响应: {"status_code": 200, "request_id": "1b93620e-c3ad-9953-af8d-e7e971174402", "code": null, "message": "", "output": {"task_id": "2cb2d532-ceb4-4d3c-b886-2be932a974d4", "task_status": "SUCCEEDED", "results": [{"url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/9c/20250828/5ff4f6f9/acbd85f3-9b19-41b4-b40e-55c89b224ac9-1-1.png?Expires=1756472439&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=bN0uwBKvViYeLIsIonqq2L2VIDg%3D";, "orig_prompt": "创建一个矢量风格的logo设计: Create a professional vector logo design: A minimalist geometric mark: a thin, hollow circle bisected by a straight vertical line to form a clean, versatile emblem.. \n            Requirements: \n            1. Simple professional design\n            2. IMPORTANT: Transparent background (PNG format)\n            3. Clear and distinct graphic with high contrast\n            4. Vector-style illustration suitable for T-shirt printing\n            5. Must not include any text, numbers or color name, only logo graphic\n            6. IMPORTANT: Do NOT include any mockups or product previews\n            7. IMPORTANT: Create ONLY the logo graphic itself\n            8. NO META REFERENCES - do not show the logo applied to anything\n            9. Design should be a standalone graphic symbo", "actual_prompt": "best quality, 简约几何标志设计：一个纤薄的空心圆，被一条笔直的垂直线精准平分，构成平衡而富有现代感的符号。整体采用高对比度的单色矢量图形，线条利落、轮廓清晰，具备极佳识别性与多场景适用性，适合T恤印刷及各类媒介应用，PNG格式透明背景，无任何文字或装饰元素。"}], "submit_time": "2025-08-28 20:59:35.302", "scheduled_time": "2025-08-28 21:00:26.781", "end_time": "2025-08-28 21:00:39.692", "task_metrics": {"TOTAL": 1, "SUCCEEDED": 1, "FAILED": 0}}, "usage": {"image_count": 1}}
+
+DashScope响应: {"status_code": 200, "request_id": "992cd1d1-c27f-9233-a0d0-7ebae7322db4", "code": null, "message": "", "output": {"task_id": "7c0cf687-98ab-4aac-a23a-db3a619239ac", "task_status": "SUCCEEDED", "results": [{"url": "https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/1d/e8/20250828/5688031c/b68c7ebc-aa6e-46bf-8fc5-86db04a68202-1-1.png?Expires=1756472439&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=Vf9lfn9E4sTjxEbUa6DXV%2FgKO9U%3D";, "orig_prompt": "创建一个矢量风格的logo设计: Create a professional vector logo design: A minimal monoline leaf silhouette encircling a gentle wave to symbolize nature and flow.. \n            Requirements: \n            1. Simple professional design\n            2. IMPORTANT: Transparent background (PNG format)\n            3. Clear and distinct graphic with high contrast\n            4. Vector-style illustration suitable for T-shirt printing\n            5. Must not include any text, numbers or color name, only logo graphic\n            6. IMPORTANT: Do NOT include any mockups or product previews\n            7. IMPORTANT: Create ONLY the logo graphic itself\n            8. NO META REFERENCES - do not show the logo applied to anything\n            9. Design should be a standalone graphic symbol/icon only\n            10. CRITI", "actual_prompt": "best quality, 极简单线矢量风格徽标设计，一片抽象叶形轮廓环绕柔和波浪线条，象征自然与流动。叶形线条流畅而富有韵律，波浪曲线轻盈延展，整体构图对称而富有视觉平衡感。采用高对比度的单色轮廓，无填充，线条均匀清晰，适合印刷于各类背景。背景完全透明，格式为PNG，适用于T恤、标识、品牌视觉等多种应用场景，独立图形符号，不附带任何文字或装饰元素。"}], "submit_time": "2025-08-28 20:59:28.424", "scheduled_time": "2025-08-28 21:00:29.653", "end_time": "2025-08-28 21:00:39.922", "task_metrics": {"TOTAL": 1, "SUCCEEDED": 1, "FAILED": 0}}, "usage": {"image_count": 1}}
+
+DashScope生成的logo尺寸: (1024, 1024)
+
+检测到的背景颜色: RGB(232, 237, 232)
+
+透明化了 1010608 个像素，占总像素的 96.4%
+
+背景透明化处理完成
+
+Logo验证通过：3271种颜色，37968个非透明像素，主要颜色占比11.43%
+
+Logo生成成功并通过验证（第2次尝试）
+
+Logo生成成功
+
+Logo验证通过：3271种颜色，37968个非透明像素，主要颜色占比11.43%
+
+DashScope生成的logo尺寸: (1024, 1024)
+
+检测到的背景颜色: RGB(230, 234, 231)
+
+Logo模式: RGBA, 有透明像素: True
+
+将透明背景logo应用到T恤位置: (308, 337)
+
+透明化了 963705 个像素，占总像素的 91.9%
+
+背景透明化处理完成
+
+Logo验证通过：11145种颜色，84871个非透明像素，主要颜色占比5.55%
+
+Logo生成成功并通过验证（第1次尝试）
+
+Logo生成成功
+
+Logo验证通过：11145种颜色，84871个非透明像素，主要颜色占比5.55%
+
+Logo模式: RGBA, 有透明像素: True
+
+将透明背景logo应用到T恤位置: (308, 337)
+
+DashScope生成的logo尺寸: (1024, 1024)
+
+检测到的背景颜色: RGB(237, 244, 240)
+
+透明化了 554211 个像素，占总像素的 52.9%
+
+背景透明化处理完成
+
+Logo验证通过：33509种颜色，494365个非透明像素，主要颜色占比3.95%
+
+Logo生成成功并通过验证（第1次尝试）
+
+Logo生成成功
+
+Logo验证通过：33509种颜色，494365个非透明像素，主要颜色占比3.95%
+
+Logo模式: RGBA, 有透明像素: True
+
+将透明背景logo应用到T恤位置: (308, 337)
+100.64.0.2 - - [28/Aug/2025 13:01:42] "POST /generate HTTP/1.1" 200 -

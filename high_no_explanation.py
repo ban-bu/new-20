@@ -70,6 +70,8 @@ GPT4O_MINI_API_KEYS = [
     "sk-2G1gAKU00wK7Rt9cxJdErScYkNtSd2o4Hgb80vc3IBspQ7Ag"
 ]
 GPT4O_MINI_BASE_URL = "https://api.deepbricks.ai/v1/"
+# 阿里云 DashScope OpenAI 兼容模式基础地址（用于对话生成提示词）
+DASHSCOPE_COMPAT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 # 阿里云DashScope API配置 - 多个密钥用于增强并发能力
 DASHSCOPE_API_KEYS = [
@@ -213,11 +215,12 @@ def convert_svg_to_png(svg_content):
 DEFAULT_DESIGN_COUNT = 20  # 可以设置为1, 3, 5, 15, 20，分别对应原来的low, medium, high, ultra-high
 
 def get_ai_design_suggestions(user_preferences=None):
-    """Get design suggestions from GPT-4o-mini with more personalized features
+    """使用阿里云 DashScope 兼容模式(qwen-flash)生成设计建议(JSON)。
     
-    使用轮询机制从20个GPT-4o API密钥中选择，支持最高并发设计建议生成
+    通过轮询阿里云密钥并发调用，走 OpenAI 兼容接口:
+    base_url = https://dashscope.aliyuncs.com/compatible-mode/v1, model = qwen-flash
     """
-    client = OpenAI(api_key=get_next_gpt4o_api_key(), base_url=GPT4O_MINI_BASE_URL)
+    client = OpenAI(api_key=get_next_dashscope_api_key(), base_url=DASHSCOPE_COMPAT_BASE_URL)
     
     # Default prompt if no user preferences provided
     if not user_preferences:
@@ -247,9 +250,9 @@ def get_ai_design_suggestions(user_preferences=None):
     """
     
     try:
-        # 调用GPT-4o-mini
+        # 调用 DashScope 兼容模式 qwen-flash
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="qwen-flash",
             messages=[
                 {"role": "system", "content": "You are a professional design consultant. Provide design suggestions in JSON format exactly as requested."},
                 {"role": "user", "content": prompt}
