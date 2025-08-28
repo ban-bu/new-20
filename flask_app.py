@@ -103,7 +103,7 @@ _dashscope_api_key_counter = 0
 _api_lock = threading.Lock()
 
 # 设置默认生成的设计数量
-DEFAULT_DESIGN_COUNT = 5
+DEFAULT_DESIGN_COUNT = 20
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # 在生产环境中使用更安全的密钥
