@@ -1,0 +1,18 @@
+Flask==3.0.0
+openai==1.66.3
+requests==2.32.3
+Pillow==11.1.0
+numpy<2.0.0
+python-dotenv==1.0.0
+# SVG处理库
+svglib==1.5.1
+reportlab==4.0.9
+freetype-py==2.3.0
+# 阿里云DashScope API
+dashscope==1.14.1
+# 额外依赖
+pandas==2.1.4
+# Flask相关依赖
+Werkzeug==3.0.1
+Jinja2==3.1.2
+MarkupSafe==2.1.3
