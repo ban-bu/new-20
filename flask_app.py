@@ -478,9 +478,9 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                             print(f"Logo生成成功并通过验证（第{attempt + 1}次尝试）")
                             return img_processed
                         else:
-                            print(f"第{attempt + 1}次生成的logo未通过验证，准备重试...")
+                            print(f"第{attempt + 1}次生成的logo未通过验证，快速重试...")
                             if attempt < max_retries - 1:
-                                time.sleep(3)  # 增加等待时间，适应Railway环境
+                                time.sleep(0.2)
                                 continue
                             else:
                                 print("所有重试都失败，返回最后一次生成的logo")
@@ -488,13 +488,14 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                     else:
                         print(f"下载图像失败, 状态码: {image_resp.status_code}")
                         if attempt < max_retries - 1:
+                            time.sleep(1)
                             continue
             else:
                 print('DashScope调用失败, status_code: %s, code: %s, message: %s' %
                       (rsp.status_code, rsp.code, rsp.message))
                 if attempt < max_retries - 1:
-                    print(f"第{attempt + 1}次调用失败，准备重试...")
-                    time.sleep(5)  # 增加等待时间，适应Railway环境
+                    print(f"第{attempt + 1}次调用失败，快速重试...")
+                    time.sleep(1)
                     continue
                 else:
                     print(f"Error: DashScope API调用失败: {rsp.message}")
@@ -502,8 +503,8 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
         except Exception as e:
             print(f"第{attempt + 1}次DashScope调用出错: {e}")
             if attempt < max_retries - 1:
-                print("准备重试...")
-                time.sleep(5)  # 增加等待时间，适应Railway环境
+                print("快速重试...")
+                time.sleep(1)
                 continue
             else:
                 print(f"Error: DashScope API调用错误: {e}")
@@ -785,40 +786,127 @@ def generate_designs():
     
     try:
         design_count = DEFAULT_DESIGN_COUNT
+        log(f"HTTP /generate pipeline START design_count={design_count} keywords='{keywords}'")
         designs = []
         
-        # 生成多个设计并行处理
-        if design_count == 1:
-            design, info = generate_complete_design(keywords, 0)
-            if design:
-                designs.append({
-                    'image': image_to_base64(design),
-                    'info': info
-                })
-        else:
-            # 使用线程池并行生成多个设计
-            max_workers = min(design_count, 20)
-            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                # 提交所有任务
-                future_to_id = {executor.submit(generate_single_design, i, keywords): i for i in range(design_count)}
-                
-                # 收集结果
-                for future in concurrent.futures.as_completed(future_to_id):
-                    design_id = future_to_id[future]
-                    try:
-                        design, info = future.result()
-                        if design:
-                            designs.append({
-                                'image': image_to_base64(design),
-                                'info': info,
-                                'design_id': design_id
-                            })
-                    except Exception as e:
-                        print(f"Design {design_id} generation failed: {str(e)}")
-            
-            # 按照ID排序设计
-            designs.sort(key=lambda x: x.get('design_id', 0))
+        # 统一线程池：并发发出所有建议请求；建议返回即并发进行改色与logo生成
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        max_workers = min(design_count * 3 + 2, 60)
+        variations = [
+            "",
+            "modern and minimalist",
+            "colorful and vibrant",
+            "vintage and retro",
+            "elegant and simple",
+            "bold and edgy",
+            "soft and feminine",
+            "urban streetwear",
+            "artistic and creative",
+            "sporty and athletic",
+            "professional and classic",
+            "playful and fun",
+            "dark and mysterious",
+            "bright and cheerful",
+            "geometric and abstract",
+            "nature-inspired",
+            "tech and futuristic",
+            "handcrafted and artisanal",
+            "luxury and premium",
+            "casual everyday"
+        ]
         
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # 预加载底图（与建议并发）
+            base_image_future = executor.submit(load_original_tshirt_image)
+            
+            # 先把全部建议请求并发出去
+            def suggestion_task(idx: int):
+                desc = variations[idx] if idx < len(variations) else ""
+                prompt = keywords if not desc else f"{keywords}, {desc}"
+                log(f"建议请求 SUBMIT idx={idx} prompt='{prompt}'")
+                return get_ai_design_suggestions(prompt)
+            sugg_future_to_idx = {executor.submit(suggestion_task, i): i for i in range(design_count)}
+            
+            # 对每个返回的建议，立即并发改色和logo
+            final_futures = []
+            for sf in as_completed(sugg_future_to_idx):
+                idx = sugg_future_to_idx[sf]
+                try:
+                    suggestion = sf.result()
+                except Exception as e:
+                    log(f"建议请求异常 idx={idx}: {e}")
+                    continue
+                if not suggestion or (isinstance(suggestion, dict) and 'error' in suggestion):
+                    log(f"建议返回错误 idx={idx}: {suggestion}")
+                    continue
+                color_hex = suggestion.get('color', {}).get('hex', '#FFFFFF')
+                color_name = suggestion.get('color', {}).get('name', 'Custom Color')
+                fabric_type = suggestion.get('fabric', 'Cotton')
+                logo_desc = suggestion.get('logo', '')
+                log(f"建议已到达 idx={idx} color={color_hex} logo_desc_len={len(logo_desc) if logo_desc else 0}")
+                
+                # 改色任务（等待底图加载即可开始）
+                def make_color_task(hx: str):
+                    def _t():
+                        base_img = base_image_future.result()
+                        return change_shirt_color(base_img, hx, False, None)
+                    return _t
+                color_future = executor.submit(make_color_task(color_hex))
+                
+                # logo 任务（立即开始，DashScope API key 轮询分配）
+                logo_future = None
+                if logo_desc:
+                    logo_prompt = f"""Create a professional vector logo design: {logo_desc}. 
+                    Requirements: 
+                    1. Simple professional design
+                    2. IMPORTANT: Transparent background (PNG format)
+                    3. Clear and distinct graphic with high contrast
+                    4. Vector-style illustration suitable for T-shirt printing
+                    5. Must not include any text, numbers or color name, only logo graphic
+                    6. IMPORTANT: Do NOT include any mockups or product previews
+                    7. IMPORTANT: Create ONLY the logo graphic itself
+                    8. NO META REFERENCES - do not show the logo applied to anything
+                    9. Design should be a standalone graphic symbol/icon only
+                    10. CRITICAL: Clean vector art style with crisp lines and solid colors
+                    11. Ensure rich details and multiple colors to avoid solid color designs"""
+                    log(f"logo 任务 SUBMIT idx={idx}")
+                    logo_future = executor.submit(generate_vector_image, logo_prompt, None, 3)
+                
+                # 合成任务：等待改色与logo完成后输出最终图
+                def make_compose_task(index: int, color_f, logo_f, cx: str, cn: str, fb: str, ld: str):
+                    def _c():
+                        shirt = color_f.result()
+                        logo_img = logo_f.result() if logo_f is not None else None
+                        final_img = shirt
+                        if logo_img is not None:
+                            final_img = apply_logo_to_shirt(shirt, logo_img, "center", 60)
+                        info = {
+                            'color': {'hex': cx, 'name': cn},
+                            'fabric': fb,
+                            'logo': ld,
+                            'design_index': index
+                        }
+                        return final_img, info, index
+                    return _c
+                final_futures.append(executor.submit(make_compose_task(idx, color_future, logo_future, color_hex, color_name, fabric_type, logo_desc)))
+            
+            # 收集最终结果
+            for ff in as_completed(final_futures):
+                try:
+                    img, info, did = ff.result()
+                    if img is not None:
+                        designs.append({
+                            'image': image_to_base64(img),
+                            'info': info,
+                            'design_id': did
+                        })
+                        log(f"设计完成 idx={did}")
+                except Exception as e:
+                    log(f"合成阶段异常: {e}")
+        
+        # 排序并返回
+        designs.sort(key=lambda x: x.get('design_id', 0))
+        log(f"HTTP /generate pipeline END total={len(designs)}")
         return jsonify({
             'success': True,
             'designs': designs,
