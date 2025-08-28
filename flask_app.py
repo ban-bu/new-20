@@ -28,6 +28,8 @@ import concurrent.futures
 import time
 import threading
 import random
+from datetime import datetime
+from functools import wraps
 # 导入阿里云DashScope文生图API
 from http import HTTPStatus
 from urllib.parse import urlparse, unquote
@@ -74,8 +76,6 @@ GPT4O_MINI_API_KEYS = [
     "sk-2G1gAKU00wK7Rt9cxJdErScYkNtSd2o4Hgb80vc3IBspQ7Ag"
 ]
 GPT4O_MINI_BASE_URL = "https://api.deepbricks.ai/v1/"
-# 阿里云 DashScope OpenAI 兼容模式基础地址（用于对话生成提示词）
-DASHSCOPE_COMPAT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 # 阿里云DashScope API配置 - 多个密钥用于增强并发能力
 DASHSCOPE_API_KEYS = [
@@ -103,20 +103,43 @@ _dashscope_api_key_counter = 0
 _api_lock = threading.Lock()
 
 # 设置默认生成的设计数量
-DEFAULT_DESIGN_COUNT = 20
+DEFAULT_DESIGN_COUNT = 5
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # 在生产环境中使用更安全的密钥
 
-# 统一的调试日志（带时间与线程名）
-def log_debug(message: str) -> None:
+# 统一日志工具：带毫秒时间戳与线程名
+def _mask_key(key: str) -> str:
     try:
-        ts = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-        thread_name = threading.current_thread().name
-        print(f"[{ts}][{thread_name}] {message}", flush=True)
+        if not key:
+            return "<none>"
+        return f"{key[:6]}...{key[-4:]}"
     except Exception:
-        # 保底打印
-        print(message, flush=True)
+        return "<hidden>"
+
+def log(message: str) -> None:
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    thread_name = threading.current_thread().name
+    print(f"[{now}] [thread={thread_name}] {message}", flush=True)
+
+def log_step(name: str = None):
+    def decorator(func):
+        step_name = name or func.__name__
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.time()
+            log(f"{step_name} START")
+            try:
+                result = func(*args, **kwargs)
+                elapsed_ms = (time.time() - start) * 1000
+                log(f"{step_name} END {elapsed_ms:.1f}ms")
+                return result
+            except Exception as e:
+                elapsed_ms = (time.time() - start) * 1000
+                log(f"{step_name} ERROR {elapsed_ms:.1f}ms: {e}")
+                raise
+        return wrapper
+    return decorator
 
 def get_next_api_key():
     """获取下一个DALL-E API密钥（轮询方式）"""
@@ -174,7 +197,7 @@ def make_background_transparent(image, threshold=100):
     bg_g = sum(p[1] for p in corner_pixels) // 4
     bg_b = sum(p[2] for p in corner_pixels) // 4
     
-    print(f"检测到的背景颜色: RGB({bg_r}, {bg_g}, {bg_b})")
+    log(f"检测到的背景颜色: RGB({bg_r}, {bg_g}, {bg_b})")
     
     # 遍历所有像素
     transparent_count = 0
@@ -200,7 +223,7 @@ def make_background_transparent(image, threshold=100):
             # 否则保持原像素
             new_data.append((r, g, b, a))
     
-    print(f"透明化了 {transparent_count} 个像素，占总像素的 {transparent_count/(image.size[0]*image.size[1])*100:.1f}%")
+    log(f"透明化了 {transparent_count} 个像素，占总像素的 {transparent_count/(image.size[0]*image.size[1])*100:.1f}%")
     
     # 创建新图像
     transparent_image = Image.new('RGBA', image.size)
@@ -224,19 +247,21 @@ def convert_svg_to_png(svg_content):
             png_bytes.seek(0)
             return Image.open(png_bytes).convert("RGBA")
         else:
-            print("Error: SVG conversion libraries not available. Please install svglib and reportlab.")
+            log("Error: SVG conversion libraries not available. Please install svglib and reportlab.")
             return None
     except Exception as e:
-        print(f"Error converting SVG to PNG: {str(e)}")
+        log(f"Error converting SVG to PNG: {str(e)}")
         return None
 
+@log_step("get_ai_design_suggestions")
 def get_ai_design_suggestions(user_preferences=None):
-    """使用阿里云 DashScope 兼容模式(qwen-flash)生成设计建议(JSON)。
+    """Get design suggestions from GPT-4o-mini with more personalized features
     
-    通过轮询阿里云密钥并发调用，走 OpenAI 兼容接口:
-    base_url = https://dashscope.aliyuncs.com/compatible-mode/v1, model = qwen-flash
+    使用轮询机制从20个GPT-4o API密钥中选择，支持最高并发设计建议生成
     """
-    client = OpenAI(api_key=get_next_dashscope_api_key(), base_url=DASHSCOPE_COMPAT_BASE_URL)
+    api_key = get_next_gpt4o_api_key()
+    log(f"GPT-4o-mini client init with key={_mask_key(api_key)} base_url={GPT4O_MINI_BASE_URL}")
+    client = OpenAI(api_key=api_key, base_url=GPT4O_MINI_BASE_URL)
     
     # Default prompt if no user preferences provided
     if not user_preferences:
@@ -266,22 +291,21 @@ def get_ai_design_suggestions(user_preferences=None):
     """
     
     try:
-        # 调用 DashScope 兼容模式 qwen-flash
-        call_started = time.time()
-        log_debug(f"LLM建议开始: model=qwen-flash, base_url={DASHSCOPE_COMPAT_BASE_URL}, prefs='{user_preferences}'")
+        # 调用GPT-4o-mini
+        log("GPT-4o-mini chat.completions.create SUBMIT")
         response = client.chat.completions.create(
-            model="qwen-flash",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a professional design consultant. Provide design suggestions in JSON format exactly as requested."},
                 {"role": "user", "content": prompt}
-            ],
-            timeout=45.0
+            ]
         )
-        log_debug(f"LLM建议完成，用时 {time.time()-call_started:.2f}s")
+        log("GPT-4o-mini chat.completions.create RESPONSE")
         
         # 返回建议内容
         if response.choices and len(response.choices) > 0:
             suggestion_text = response.choices[0].message.content
+            log(f"GPT-4o-mini suggestion received length={len(suggestion_text) if suggestion_text else 0}")
             
             # 尝试解析JSON
             try:
@@ -295,12 +319,11 @@ def get_ai_design_suggestions(user_preferences=None):
                 
                 return suggestion_json
             except Exception as e:
-                log_debug(f"解析LLM JSON失败: {e}")
+                log(f"Error parsing JSON: {e}")
                 return {"error": f"Failed to parse design suggestions: {str(e)}"}
         else:
             return {"error": "Failed to get AI design suggestions. Please try again later."}
     except Exception as e:
-        log_debug(f"LLM建议调用异常: {e}")
         return {"error": f"Error getting AI design suggestions: {str(e)}"}
 
 def is_valid_logo(image, min_colors=3, min_non_transparent_pixels=1000):
@@ -363,11 +386,13 @@ def is_valid_logo(image, min_colors=3, min_non_transparent_pixels=1000):
         print(f"Logo验证过程中出错: {e}")
         return False
 
-def generate_vector_image(prompt, background_color=None, max_retries=1):
-    """单次调用 DashScope 生成矢量风格logo（无重试），并做背景透明化后返回。
-
-    为保持兼容，保留 max_retries 参数但不做循环。
+def generate_vector_image(prompt, background_color=None, max_retries=3):
+    """Generate a vector-style logo with transparent background using DashScope API with validation and retry
+    
+    使用轮询机制从15个DashScope API密钥中选择，支持高并发并行生成提高效率
     """
+    
+    # 构建矢量图logo专用的提示词
     vector_style_prompt = f"""创建一个矢量风格的logo设计: {prompt}
     要求:
     1. 简洁的矢量图风格，线条清晰
@@ -383,38 +408,87 @@ def generate_vector_image(prompt, background_color=None, max_retries=1):
     11. 请生成PNG格式的透明背景图标
     12. 图标应该是独立的，没有任何背景元素
     13. 确保logo有丰富的细节和多种颜色，避免纯色设计"""
-
+    
+    # 如果DashScope不可用，直接返回None
     if not DASHSCOPE_AVAILABLE:
         print("Error: DashScope API不可用，无法生成logo。请确保已正确安装dashscope库。")
         return None
-
-    try:
-        current_api_key = get_next_dashscope_api_key()
-        log_debug(f"调用DashScope生成logo(单次), 使用key: {current_api_key[:8]}***, 模型=wanx2.0-t2i-turbo")
-        rsp = ImageSynthesis.call(
-            api_key=current_api_key,
-            model="wanx2.0-t2i-turbo",
-            prompt=vector_style_prompt,
-            n=1,
-            size='1024*1024'
-        )
-        log_debug(f"DashScope响应: status_code={rsp.status_code}, code={getattr(rsp,'code',None)}")
-
-        if rsp.status_code == HTTPStatus.OK:
-            for result in rsp.output.results:
-                image_resp = requests.get(result.url)
-                if image_resp.status_code == 200:
-                    img = Image.open(BytesIO(image_resp.content)).convert("RGBA")
-                    log_debug(f"logo尺寸: {img.size}")
-                    img_processed = make_background_transparent(img, threshold=120)
-                    log_debug("背景透明化处理完成")
-                    return img_processed
+    
+    # 尝试生成logo，最多重试max_retries次
+    for attempt in range(max_retries):
+        try:
+            print(f'----第{attempt + 1}次尝试使用DashScope生成矢量logo，提示词: {vector_style_prompt}----')
+            
+            # 为重试添加随机性，避免生成相同的图像
+            if attempt > 0:
+                retry_prompt = f"{vector_style_prompt}\n\n变化要求: 请生成与之前不同的设计风格，尝试{['更加几何化', '更加有机化', '更加现代化'][attempt % 3]}的设计"
+            else:
+                retry_prompt = vector_style_prompt
+            
+            # 获取下一个DashScope API密钥用于当前请求
+            current_api_key = get_next_dashscope_api_key()
+            print(f'使用DashScope API密钥: {current_api_key[:20]}...{current_api_key[-10:]}')
+            
+            rsp = ImageSynthesis.call(
+                api_key=current_api_key,
+                model="wanx2.0-t2i-turbo",
+                prompt=retry_prompt,
+                n=1,
+                size='1024*1024'
+            )
+            print('DashScope响应: %s' % rsp)
+            
+            if rsp.status_code == HTTPStatus.OK:
+                # 下载生成的图像
+                for result in rsp.output.results:
+                    image_resp = requests.get(result.url)
+                    if image_resp.status_code == 200:
+                        # 加载图像并转换为RGBA模式
+                        img = Image.open(BytesIO(image_resp.content)).convert("RGBA")
+                        print(f"DashScope生成的logo尺寸: {img.size}")
+                        
+                        # 后处理：将白色背景转换为透明（使用更高的阈值）
+                        img_processed = make_background_transparent(img, threshold=120)
+                        print(f"背景透明化处理完成")
+                        
+                        # 验证生成的logo是否有效
+                        if is_valid_logo(img_processed):
+                            print(f"Logo生成成功并通过验证（第{attempt + 1}次尝试）")
+                            return img_processed
+                        else:
+                            print(f"第{attempt + 1}次生成的logo未通过验证，准备重试...")
+                            if attempt < max_retries - 1:
+                                time.sleep(3)  # 增加等待时间，适应Railway环境
+                                continue
+                            else:
+                                print("所有重试都失败，返回最后一次生成的logo")
+                                return img_processed  # 即使验证失败，也返回最后的结果
+                    else:
+                        print(f"下载图像失败, 状态码: {image_resp.status_code}")
+                        if attempt < max_retries - 1:
+                            continue
+            else:
+                print('DashScope调用失败, status_code: %s, code: %s, message: %s' %
+                      (rsp.status_code, rsp.code, rsp.message))
+                if attempt < max_retries - 1:
+                    print(f"第{attempt + 1}次调用失败，准备重试...")
+                    time.sleep(5)  # 增加等待时间，适应Railway环境
+                    continue
                 else:
-                    log_debug(f"下载图像失败, 状态码: {image_resp.status_code}")
-        else:
-            log_debug(f"DashScope调用失败: message={getattr(rsp,'message',None)}")
-    except Exception as e:
-        log_debug(f"DashScope单次调用异常: {e}")
+                    print(f"Error: DashScope API调用失败: {rsp.message}")
+                
+        except Exception as e:
+            print(f"第{attempt + 1}次DashScope调用出错: {e}")
+            if attempt < max_retries - 1:
+                print("准备重试...")
+                time.sleep(5)  # 增加等待时间，适应Railway环境
+                continue
+            else:
+                print(f"Error: DashScope API调用错误: {e}")
+    
+    # 所有重试都失败
+    print(f"经过{max_retries}次尝试，logo生成失败")
+    print("Error: Logo生成失败，请检查网络连接或稍后重试。")
     return None
 
 def change_shirt_color(image, color_hex, apply_texture=False, fabric_type=None):
@@ -452,14 +526,14 @@ def change_shirt_color(image, color_hex, apply_texture=False, fabric_type=None):
     
     return colored_image
 
-def apply_logo_to_shirt(shirt_image, logo_image, position="center", size_percent=60, background_color=None, skip_validation=False):
+def apply_logo_to_shirt(shirt_image, logo_image, position="center", size_percent=60, background_color=None):
     """Apply logo to T-shirt image with better blending to reduce shadows"""
     if logo_image is None:
         print("Logo为空，跳过logo应用")
         return shirt_image
     
-    # 验证logo是否有效（可跳过）
-    if not skip_validation and not is_valid_logo(logo_image):
+    # 验证logo是否有效
+    if not is_valid_logo(logo_image):
         print("Logo验证失败，跳过logo应用")
         return shirt_image
     
@@ -515,20 +589,13 @@ def apply_logo_to_shirt(shirt_image, logo_image, position="center", size_percent
     
     return result_image
 
-def generate_complete_design(design_prompt, variation_id=None, suggestions_override=None):
+def generate_complete_design(design_prompt, variation_id=None):
     """Generate complete T-shirt design based on prompt"""
     if not design_prompt:
         return None, {"error": "Please enter a design prompt"}
     
-    # 获取AI设计建议（支持外部预取）
-    t0 = time.time()
-    if suggestions_override is not None:
-        log_debug("使用预取的AI建议，跳过模型调用")
-        design_suggestions = suggestions_override
-    else:
-        log_debug(f"开始获取AI建议, prompt='{design_prompt}'")
-        design_suggestions = get_ai_design_suggestions(design_prompt)
-        log_debug(f"获取AI建议完成, 用时 {time.time()-t0:.2f}s")
+    # 获取AI设计建议
+    design_suggestions = get_ai_design_suggestions(design_prompt)
     
     if "error" in design_suggestions:
         return None, design_suggestions
@@ -565,14 +632,12 @@ def generate_complete_design(design_prompt, variation_id=None, suggestions_overr
         fabric_type = design_suggestions.get("fabric", "Cotton")
         
         # 1. 应用颜色和纹理
-        t1 = time.time()
         colored_shirt = change_shirt_color(
             original_image,
             color_hex,
             apply_texture=True,
             fabric_type=fabric_type
         )
-        log_debug(f"应用颜色与纹理完成, 用时 {time.time()-t1:.2f}s, color={color_hex}, fabric={fabric_type}")
         
         # 2. 生成Logo
         logo_description = design_suggestions.get("logo", "")
@@ -595,13 +660,13 @@ def generate_complete_design(design_prompt, variation_id=None, suggestions_overr
             11. Ensure rich details and multiple colors to avoid solid color designs"""
             
             # 生成透明背景的矢量logo，带有重试机制
-            log_debug(f"开始生成logo: {logo_description}")
+            print(f"开始生成logo: {logo_description}")
             logo_image = generate_vector_image(logo_prompt, max_retries=3)
             
             if logo_image is None:
-                log_debug("Logo生成失败，将继续生成不带logo的设计")
+                print(f"Logo生成失败，将继续生成不带logo的设计")
             else:
-                log_debug("Logo生成成功")
+                print(f"Logo生成成功")
         
         # 最终设计 - 不添加文字
         final_design = colored_shirt
@@ -609,7 +674,7 @@ def generate_complete_design(design_prompt, variation_id=None, suggestions_overr
         # 应用Logo (如果有)
         if logo_image:
             # 应用透明背景的logo到T恤
-            final_design = apply_logo_to_shirt(colored_shirt, logo_image, "center", 60, skip_validation=True)
+            final_design = apply_logo_to_shirt(colored_shirt, logo_image, "center", 60)
         
         return final_design, {
             "color": {"hex": color_hex, "name": color_name},
@@ -621,9 +686,10 @@ def generate_complete_design(design_prompt, variation_id=None, suggestions_overr
     except Exception as e:
         import traceback
         traceback_str = traceback.format_exc()
+        log(f"generate_complete_design EXCEPTION: {e}\n{traceback_str}")
         return None, {"error": f"Error generating design: {str(e)}\n{traceback_str}"}
 
-def generate_single_design(design_index, design_prompt, suggestions_override=None):
+def generate_single_design(design_index, design_prompt):
     try:
         # 添加小的固定延迟，避免所有线程同时发起API请求
         time.sleep(0.2)
@@ -665,8 +731,8 @@ def generate_single_design(design_index, design_prompt, suggestions_override=Non
             varied_prompt = design_prompt
         
         # 完整的独立流程 - 每个设计独立获取AI建议、生成图片，确保颜色一致性
-        # 使用独立提示词生成完全不同的设计；若提供预取建议则共用
-        design, info = generate_complete_design(varied_prompt, suggestions_override=suggestions_override)
+        # 使用独立提示词生成完全不同的设计
+        design, info = generate_complete_design(varied_prompt)
         
         # 添加设计索引到信息中以便排序
         if info and isinstance(info, dict):
@@ -697,8 +763,6 @@ def generate_designs():
         return jsonify({'error': 'Please enter at least one keyword'}), 400
     
     try:
-        request_start = time.time()
-        log_debug(f"收到生成请求, keywords='{keywords}'")
         design_count = DEFAULT_DESIGN_COUNT
         designs = []
         
@@ -711,16 +775,11 @@ def generate_designs():
                     'info': info
                 })
         else:
-            # 预取一次AI建议，减少重复等待（可选优化）
-            prefetch_started = time.time()
-            pre_suggestions = get_ai_design_suggestions(keywords)
-            log_debug(f"预取AI建议完成, 用时 {time.time()-prefetch_started:.2f}s")
-
             # 使用线程池并行生成多个设计
             max_workers = min(design_count, 20)
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # 提交所有任务
-                future_to_id = {executor.submit(generate_single_design, i, keywords, pre_suggestions): i for i in range(design_count)}
+                future_to_id = {executor.submit(generate_single_design, i, keywords): i for i in range(design_count)}
                 
                 # 收集结果
                 for future in concurrent.futures.as_completed(future_to_id):
@@ -739,13 +798,11 @@ def generate_designs():
             # 按照ID排序设计
             designs.sort(key=lambda x: x.get('design_id', 0))
         
-        resp = jsonify({
+        return jsonify({
             'success': True,
             'designs': designs,
             'total': len(designs)
         })
-        log_debug(f"响应生成请求完成, 总用时 {time.time()-request_start:.2f}s, 返回 {len(designs)} 个设计")
-        return resp
     
     except Exception as e:
         import traceback

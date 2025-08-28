@@ -22,6 +22,9 @@ import json
 # 导入并行处理库
 import concurrent.futures
 import time
+import threading
+from datetime import datetime
+from functools import wraps
 
 # API配置信息 - 实际使用时应从主文件传入或使用环境变量
 API_KEY = "sk-51a3e204ed83484db3b44e12d81c143e"
@@ -34,8 +37,43 @@ GPT4O_MINI_BASE_URL = "https://api.deepbricks.ai/v1/"
 # 从svg_utils导入SVG转换函数
 from svg_utils import convert_svg_to_png
 
+# 统一日志工具：带毫秒时间戳与线程名
+def _mask_key(key: str) -> str:
+    try:
+        if not key:
+            return "<none>"
+        return f"{key[:6]}...{key[-4:]}"
+    except Exception:
+        return "<hidden>"
+
+def log(message: str) -> None:
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    thread_name = threading.current_thread().name
+    print(f"[{now}] [thread={thread_name}] {message}", flush=True)
+
+def log_step(name: str = None):
+    def decorator(func):
+        step_name = name or func.__name__
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.time()
+            log(f"{step_name} START")
+            try:
+                result = func(*args, **kwargs)
+                elapsed_ms = (time.time() - start) * 1000
+                log(f"{step_name} END {elapsed_ms:.1f}ms")
+                return result
+            except Exception as e:
+                elapsed_ms = (time.time() - start) * 1000
+                log(f"{step_name} ERROR {elapsed_ms:.1f}ms: {e}")
+                raise
+        return wrapper
+    return decorator
+
+@log_step("get_ai_design_suggestions")
 def get_ai_design_suggestions(user_preferences=None):
     """Get design suggestions from GPT-4o-mini with more personalized features"""
+    log(f"GPT-4o-mini client init key={_mask_key(GPT4O_MINI_API_KEY)} base_url={GPT4O_MINI_BASE_URL}")
     client = OpenAI(api_key=GPT4O_MINI_API_KEY, base_url=GPT4O_MINI_BASE_URL)
     
     # Default prompt if no user preferences provided
@@ -67,6 +105,7 @@ def get_ai_design_suggestions(user_preferences=None):
     
     try:
         # 调用GPT-4o-mini
+        log("GPT-4o-mini chat.completions.create SUBMIT")
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -74,10 +113,12 @@ def get_ai_design_suggestions(user_preferences=None):
                 {"role": "user", "content": prompt}
             ]
         )
+        log("GPT-4o-mini chat.completions.create RESPONSE")
         
         # 返回建议内容
         if response.choices and len(response.choices) > 0:
             suggestion_text = response.choices[0].message.content
+            log(f"GPT-4o-mini suggestion length={len(suggestion_text) if suggestion_text else 0}")
             
             # 尝试解析JSON
             try:
@@ -91,7 +132,7 @@ def get_ai_design_suggestions(user_preferences=None):
                 
                 return suggestion_json
             except Exception as e:
-                print(f"Error parsing JSON: {e}")
+                log(f"Error parsing JSON: {e}")
                 return {"error": f"Failed to parse design suggestions: {str(e)}"}
         else:
             return {"error": "Failed to get AI design suggestions. Please try again later."}
@@ -100,8 +141,10 @@ def get_ai_design_suggestions(user_preferences=None):
 
 def generate_vector_image(prompt):
     """Generate an image based on the prompt"""
+    log(f"images.generate client init key={_mask_key(API_KEY)} base_url={BASE_URL}")
     client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
     try:
+        log("images.generate SUBMIT")
         resp = client.images.generate(
             model="dall-e-3",
             prompt=prompt,
@@ -109,6 +152,7 @@ def generate_vector_image(prompt):
             size="1024x1024",
             quality="standard"
         )
+        log("images.generate RESPONSE")
     except Exception as e:
         st.error(f"Error calling API: {e}")
         return None
@@ -116,14 +160,18 @@ def generate_vector_image(prompt):
     if resp and len(resp.data) > 0 and resp.data[0].url:
         image_url = resp.data[0].url
         try:
+            log("download image SUBMIT")
             image_resp = requests.get(image_url)
             if image_resp.status_code == 200:
                 content_type = image_resp.headers.get("Content-Type", "")
                 if "svg" in content_type.lower():
                     # 使用集中的SVG处理函数
+                    log("download image RESPONSE: SVG content")
                     return convert_svg_to_png(image_resp.content)
                 else:
-                    return Image.open(BytesIO(image_resp.content)).convert("RGBA")
+                    img = Image.open(BytesIO(image_resp.content)).convert("RGBA")
+                    log(f"download image RESPONSE: PNG/JPG size={img.size}")
+                    return img
             else:
                 st.error(f"Failed to download image, status code: {image_resp.status_code}")
         except Exception as download_err:
@@ -132,6 +180,7 @@ def generate_vector_image(prompt):
         st.error("Could not get image URL from API response.")
     return None
 
+@log_step("change_shirt_color")
 def change_shirt_color(image, color_hex, apply_texture=False, fabric_type=None):
     """Change T-shirt color with optional fabric texture"""
     # 转换十六进制颜色为RGB
@@ -163,10 +212,12 @@ def change_shirt_color(image, color_hex, apply_texture=False, fabric_type=None):
     
     # 如果需要应用纹理
     if apply_texture and fabric_type:
+        log(f"apply_fabric_texture fabric={fabric_type}")
         return apply_fabric_texture(colored_image, fabric_type)
     
     return colored_image
 
+@log_step("apply_text_to_shirt")
 def apply_text_to_shirt(image, text, color_hex="#FFFFFF", font_size=80):
     """Apply text to T-shirt image"""
     if not text:
@@ -212,14 +263,14 @@ def apply_text_to_shirt(image, text, color_hex="#FFFFFF", font_size=80):
                 font = ImageFont.truetype(font_path, font_size)
                 break
     except Exception as e:
-        print(f"Error loading font: {e}")
+        log(f"Error loading font: {e}")
     
     # 如果加载失败，使用默认字体
     if font is None:
         try:
             font = ImageFont.load_default()
         except:
-            print("Could not load default font")
+            log("Could not load default font")
             return result_image
     
     # 将十六进制颜色转换为RGB
@@ -242,6 +293,7 @@ def apply_text_to_shirt(image, text, color_hex="#FFFFFF", font_size=80):
     
     return result_image
 
+@log_step("apply_logo_to_shirt")
 def apply_logo_to_shirt(shirt_image, logo_image, position="center", size_percent=30):
     """Apply logo to T-shirt image"""
     if logo_image is None:
@@ -262,6 +314,7 @@ def apply_logo_to_shirt(shirt_image, logo_image, position="center", size_percent
     logo_width = int(chest_width * logo_size_factor * 0.5)
     logo_height = int(logo_width * logo_image.height / logo_image.width)
     logo_resized = logo_image.resize((logo_width, logo_height), Image.LANCZOS)
+    log(f"logo resize to {logo_resized.size} at ({logo_x if 'logo_x' in locals() else '?'} , {logo_y if 'logo_y' in locals() else '?'})")
     
     # 根据位置确定坐标
     position = position.lower() if isinstance(position, str) else "center"
@@ -279,9 +332,11 @@ def apply_logo_to_shirt(shirt_image, logo_image, position="center", size_percent
     
     # 组合图像
     result_image = Image.alpha_composite(result_image, temp_image)
+    log("logo pasted")
     
     return result_image
 
+@log_step("generate_complete_design")
 def generate_complete_design(design_prompt, variation_id=None):
     """Generate complete T-shirt design based on prompt"""
     if not design_prompt:
@@ -315,6 +370,7 @@ def generate_complete_design(design_prompt, variation_id=None):
         
         # 加载原始白色T恤图像
         original_image = Image.open(original_image_path).convert("RGBA")
+        log(f"加载T恤底图: {original_image_path} size={original_image.size}")
     except Exception as e:
         return None, {"error": f"Error loading T-shirt image: {str(e)}"}
     
@@ -350,6 +406,7 @@ def generate_complete_design(design_prompt, variation_id=None):
                 fabric_type = fabric_options[variation_id % len(fabric_options)]
         
         # 1. 应用颜色和纹理
+        log(f"应用颜色与纹理 color={color_hex} fabric={fabric_type}")
         colored_shirt = change_shirt_color(
             original_image,
             color_hex,
@@ -371,6 +428,7 @@ def generate_complete_design(design_prompt, variation_id=None):
             
             # 修改Logo提示词，确保生成的Logo有白色背景，没有透明部分
             logo_prompt = f"Create a Logo design for printing: {logo_desc}. Requirements: 1. Simple professional design 2. NO TRANSPARENCY background (NO TRANSPARENCY) 3. Clear and distinct graphic 4. Good contrast with colors that will show well on fabric"
+            log(f"开始生成logo: {logo_description}")
             logo_image = generate_vector_image(logo_prompt)
         
         # 最终设计 - 不添加文字
@@ -379,6 +437,7 @@ def generate_complete_design(design_prompt, variation_id=None):
         # 应用Logo (如果有)
         if logo_image:
             final_design = apply_logo_to_shirt(colored_shirt, logo_image, "center", 30)
+        log("完成组装最终设计")
         
         return final_design, {
             "color": {"hex": color_hex, "name": design_suggestions.get("color", {}).get("name", "Custom Color")},
@@ -390,8 +449,10 @@ def generate_complete_design(design_prompt, variation_id=None):
     except Exception as e:
         import traceback
         traceback_str = traceback.format_exc()
+        log(f"generate_complete_design EXCEPTION: {e}\n{traceback_str}")
         return None, {"error": f"Error generating design: {str(e)}\n{traceback_str}"}
 
+@log_step("generate_multiple_designs")
 def generate_multiple_designs(design_prompt, count=1):
     """Generate multiple T-shirt designs in parallel"""
     if count <= 1:
@@ -419,6 +480,7 @@ def generate_multiple_designs(design_prompt, count=1):
     with concurrent.futures.ThreadPoolExecutor(max_workers=count) as executor:
         # 提交所有任务
         future_to_id = {executor.submit(generate_single_design, i): i for i in range(count)}
+        log(f"提交任务数={len(future_to_id)} max_workers={count}")
         
         # 收集结果
         for future in concurrent.futures.as_completed(future_to_id):
@@ -428,7 +490,9 @@ def generate_multiple_designs(design_prompt, count=1):
                 if design:
                     designs.append((design, info))
             except Exception as e:
-                print(f"Design {design_id} generated an exception: {e}")
+                log(f"Design {design_id} generated an exception: {e}")
+            finally:
+                log(f"并发收集完成 design_id={design_id} 当前累计={len(designs)}/{count}")
     
     # 按照原始ID顺序排序
     designs.sort(key=lambda x: x[1].get("variation_id", 0) if x[1] and "variation_id" in x[1] else 0)
