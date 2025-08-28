@@ -857,29 +857,39 @@ def generate_designs():
                 color_future = executor.submit(make_color_task(color_hex))
                 
                 # logo 任务（立即开始，DashScope API key 轮询分配）
-                logo_future = None
-                if logo_desc:
-                    logo_prompt = f"""Create a professional vector logo design: {logo_desc}. 
-                    Requirements: 
-                    1. Simple professional design
-                    2. IMPORTANT: Transparent background (PNG format)
-                    3. Clear and distinct graphic with high contrast
-                    4. Vector-style illustration suitable for T-shirt printing
-                    5. Must not include any text, numbers or color name, only logo graphic
-                    6. IMPORTANT: Do NOT include any mockups or product previews
-                    7. IMPORTANT: Create ONLY the logo graphic itself
-                    8. NO META REFERENCES - do not show the logo applied to anything
-                    9. Design should be a standalone graphic symbol/icon only
-                    10. CRITICAL: Clean vector art style with crisp lines and solid colors
-                    11. Ensure rich details and multiple colors to avoid solid color designs"""
-                    log(f"logo 任务 SUBMIT idx={idx}")
-                    logo_future = executor.submit(generate_vector_image, logo_prompt, None, 3)
+                # 若建议没有logo描述，构造一个默认描述，确保始终生成
+                if not logo_desc or not str(logo_desc).strip():
+                    logo_desc = f"abstract geometric badge matching {color_name} ({color_hex}), clean edges, vector flat style, center composition"
+                logo_prompt = f"""Create a professional vector logo design: {logo_desc}. 
+                Requirements: 
+                1. Simple professional design
+                2. IMPORTANT: Transparent background (PNG format)
+                3. Clear and distinct graphic with high contrast
+                4. Vector-style illustration suitable for T-shirt printing
+                5. Must not include any text, numbers or color name, only logo graphic
+                6. IMPORTANT: Do NOT include any mockups or product previews
+                7. IMPORTANT: Create ONLY the logo graphic itself
+                8. NO META REFERENCES - do not show the logo applied to anything
+                9. Design should be a standalone graphic symbol/icon only
+                10. CRITICAL: Clean vector art style with crisp lines and solid colors
+                11. Ensure rich details and multiple colors to avoid solid color designs"""
+                log(f"logo 任务 SUBMIT idx={idx}")
+                logo_future = executor.submit(generate_vector_image, logo_prompt, None, 3)
                 
                 # 合成任务：等待改色与logo完成后输出最终图
                 def make_compose_task(index: int, color_f, logo_f, cx: str, cn: str, fb: str, ld: str):
                     def _c():
                         shirt = color_f.result()
                         logo_img = logo_f.result() if logo_f is not None else None
+                        # 若logo生成失败，进行一次回退生成
+                        if logo_img is None:
+                            try:
+                                fallback_desc = f"minimal abstract icon with two-tone colors, clean vector silhouette, center composition, complements {cx}"
+                                fallback_prompt = f"Create a professional vector logo design: {fallback_desc}. Requirements: Transparent background (PNG), high contrast, no text, no mockups, clean edges, flat style"
+                                logo_img = generate_vector_image(fallback_prompt, None, 2)
+                                log(f"回退logo生成 idx={index} {'成功' if logo_img is not None else '失败'}")
+                            except Exception as _:
+                                logo_img = None
                         final_img = shirt
                         if logo_img is not None:
                             final_img = apply_logo_to_shirt(shirt, logo_img, "center", 60)
