@@ -253,6 +253,28 @@ def convert_svg_to_png(svg_content):
         log(f"Error converting SVG to PNG: {str(e)}")
         return None
 
+@log_step("load_original_tshirt_image")
+def load_original_tshirt_image():
+    """并发可调用：查找并加载白色T恤底图为RGBA。找不到则抛出异常。"""
+    original_image_path = "white_shirt.png"
+    possible_paths = [
+        "white_shirt.png",
+        "./white_shirt.png",
+        "../white_shirt.png",
+        "images/white_shirt.png",
+    ]
+    found = False
+    for path in possible_paths:
+        if os.path.exists(path):
+            original_image_path = path
+            found = True
+            break
+    if not found:
+        raise FileNotFoundError("Could not find base T-shirt image")
+    img = Image.open(original_image_path).convert("RGBA")
+    log(f"加载T恤底图: {original_image_path} size={img.size}")
+    return img
+
 @log_step("get_ai_design_suggestions")
 def get_ai_design_suggestions(user_preferences=None):
     """Get design suggestions from GPT-4o-mini with more personalized features
@@ -523,11 +545,7 @@ def change_shirt_color(image, color_hex, apply_texture=False, fabric_type=None):
     log("change_shirt_color recolor done")
     
     # 如果需要应用纹理
-    if apply_texture and fabric_type:
-        log(f"apply_fabric_texture START fabric={fabric_type}")
-        textured = apply_fabric_texture(colored_image, fabric_type)
-        log("apply_fabric_texture END")
-        return textured
+    # 纹理阶段已禁用
     
     return colored_image
 
@@ -599,57 +617,31 @@ def generate_complete_design(design_prompt, variation_id=None):
     if not design_prompt:
         return None, {"error": "Please enter a design prompt"}
     
-    # 获取AI设计建议
-    design_suggestions = get_ai_design_suggestions(design_prompt)
-    
-    if "error" in design_suggestions:
-        return None, design_suggestions
-    
-    # 加载原始T恤图像
-    try:
-        original_image_path = "white_shirt.png"
-        possible_paths = [
-            "white_shirt.png",
-            "./white_shirt.png",
-            "../white_shirt.png",
-            "images/white_shirt.png",
-        ]
+    # 并发：提前启动底图加载
+    base_image = None
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=3) as local_executor:
+        base_image_future = local_executor.submit(load_original_tshirt_image)
         
-        found = False
-        for path in possible_paths:
-            if os.path.exists(path):
-                original_image_path = path
-                found = True
-                break
+        # 同时获取AI设计建议
+        design_suggestions = get_ai_design_suggestions(design_prompt)
+        if "error" in design_suggestions:
+            try:
+                # 等待底图线程结束，避免僵尸线程
+                _ = base_image_future.result(timeout=0.1)
+            except Exception:
+                pass
+            return None, design_suggestions
         
-        if not found:
-            return None, {"error": "Could not find base T-shirt image"}
-        
-        # 加载原始白色T恤图像
-        original_image = Image.open(original_image_path).convert("RGBA")
-    except Exception as e:
-        return None, {"error": f"Error loading T-shirt image: {str(e)}"}
-    
-    try:
-        # 使用AI建议的颜色和面料
+        # 提取建议
         color_hex = design_suggestions.get("color", {}).get("hex", "#FFFFFF")
         color_name = design_suggestions.get("color", {}).get("name", "Custom Color")
         fabric_type = design_suggestions.get("fabric", "Cotton")
-        
-        # 1. 应用颜色和纹理
-        colored_shirt = change_shirt_color(
-            original_image,
-            color_hex,
-            apply_texture=True,
-            fabric_type=fabric_type
-        )
-        
-        # 2. 生成Logo
         logo_description = design_suggestions.get("logo", "")
-        logo_image = None
         
+        # 并发：拿到建议立刻触发logo生成
+        logo_future = None
         if logo_description:
-            # 修改Logo提示词，生成透明背景的矢量图logo
             logo_prompt = f"""Create a professional vector logo design: {logo_description}. 
             Requirements: 
             1. Simple professional design
@@ -663,16 +655,40 @@ def generate_complete_design(design_prompt, variation_id=None):
             9. Design should be a standalone graphic symbol/icon only
             10. CRITICAL: Clean vector art style with crisp lines and solid colors
             11. Ensure rich details and multiple colors to avoid solid color designs"""
-            
-            # 生成透明背景的矢量logo，带有重试机制
-            print(f"开始生成logo: {logo_description}")
-            logo_image = generate_vector_image(logo_prompt, max_retries=3)
-            
-            if logo_image is None:
-                print(f"Logo生成失败，将继续生成不带logo的设计")
-            else:
-                print(f"Logo生成成功")
+            log(f"开始生成logo: {logo_description}")
+            logo_future = local_executor.submit(generate_vector_image, logo_prompt, None, 3)
         
+        # 等待底图加载完成
+        try:
+            base_image = base_image_future.result()
+        except Exception as e:
+            return None, {"error": f"Error loading T-shirt image: {str(e)}"}
+        
+        # 并发：开始改色与纹理
+        log(f"应用颜色（纹理已禁用） color={color_hex}")
+        shirt_future = local_executor.submit(change_shirt_color, base_image, color_hex, False, None)
+        
+        # 汇总结果
+        colored_shirt = None
+        logo_image = None
+        try:
+            colored_shirt = shirt_future.result()
+        except Exception as e:
+            import traceback
+            traceback_str = traceback.format_exc()
+            log(f"change_shirt_color 异常: {e}\n{traceback_str}")
+            return None, {"error": f"Error changing shirt color: {str(e)}"}
+        
+        if logo_future is not None:
+            try:
+                logo_image = logo_future.result()
+                if logo_image is None:
+                    log("Logo生成失败，将继续生成不带logo的设计")
+            except Exception as e:
+                log(f"Logo生成异常: {e}")
+                logo_image = None
+    
+    try:
         # 最终设计 - 不添加文字
         final_design = colored_shirt
         
@@ -687,12 +703,11 @@ def generate_complete_design(design_prompt, variation_id=None):
             "logo": logo_description,
             "design_index": 0 if variation_id is None else variation_id  # 使用design_index替代variation_id
         }
-    
     except Exception as e:
         import traceback
         traceback_str = traceback.format_exc()
-        log(f"generate_complete_design EXCEPTION: {e}\n{traceback_str}")
-        return None, {"error": f"Error generating design: {str(e)}\n{traceback_str}"}
+        log(f"generate_complete_design 合成阶段异常: {e}\n{traceback_str}")
+        return None, {"error": f"Error assembling final design: {str(e)}\n{traceback_str}"}
 
 def generate_single_design(design_index, design_prompt):
     try:
