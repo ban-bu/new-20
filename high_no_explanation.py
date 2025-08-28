@@ -122,6 +122,14 @@ def get_next_dashscope_api_key():
         _dashscope_api_key_counter += 1
         return key
 
+def log_debug(message: str) -> None:
+    try:
+        ts = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+        thread_name = threading.current_thread().name
+        print(f"[{ts}][{thread_name}] {message}", flush=True)
+    except Exception:
+        print(message, flush=True)
+
 def make_background_transparent(image, threshold=100):
     """
     将图像的白色/浅色背景转换为透明背景
@@ -250,14 +258,17 @@ def get_ai_design_suggestions(user_preferences=None):
     """
     
     try:
-        # 调用 DashScope 兼容模式 qwen-flash
+        call_started = time.time()
+        log_debug(f"LLM建议开始: model=qwen-flash, base_url={DASHSCOPE_COMPAT_BASE_URL}, prefs='{user_preferences}'")
         response = client.chat.completions.create(
             model="qwen-flash",
             messages=[
                 {"role": "system", "content": "You are a professional design consultant. Provide design suggestions in JSON format exactly as requested."},
                 {"role": "user", "content": prompt}
-            ]
+            ],
+            timeout=45.0
         )
+        log_debug(f"LLM建议完成，用时 {time.time()-call_started:.2f}s")
         
         # 返回建议内容
         if response.choices and len(response.choices) > 0:
@@ -275,11 +286,12 @@ def get_ai_design_suggestions(user_preferences=None):
                 
                 return suggestion_json
             except Exception as e:
-                print(f"Error parsing JSON: {e}")
+                log_debug(f"解析LLM JSON失败: {e}")
                 return {"error": f"Failed to parse design suggestions: {str(e)}"}
         else:
             return {"error": "Failed to get AI design suggestions. Please try again later."}
     except Exception as e:
+        log_debug(f"LLM建议调用异常: {e}")
         return {"error": f"Error getting AI design suggestions: {str(e)}"}
 
 def is_valid_logo(image, min_colors=3, min_non_transparent_pixels=1000):
@@ -342,13 +354,8 @@ def is_valid_logo(image, min_colors=3, min_non_transparent_pixels=1000):
         print(f"Logo验证过程中出错: {e}")
         return False
 
-def generate_vector_image(prompt, background_color=None, max_retries=3):
-    """Generate a vector-style logo with transparent background using DashScope API with validation and retry
-    
-    使用轮询机制从15个DashScope API密钥中选择，支持高并发并行生成提高效率
-    """
-    
-    # 构建矢量图logo专用的提示词
+def generate_vector_image(prompt, background_color=None, max_retries=1):
+    """单次调用 DashScope 生成矢量风格logo（无重试），并做背景透明化后返回。"""
     vector_style_prompt = f"""创建一个矢量风格的logo设计: {prompt}
     要求:
     1. 简洁的矢量图风格，线条清晰
@@ -364,87 +371,39 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
     11. 请生成PNG格式的透明背景图标
     12. 图标应该是独立的，没有任何背景元素
     13. 确保logo有丰富的细节和多种颜色，避免纯色设计"""
-    
-    # 如果DashScope不可用，直接返回None
+
     if not DASHSCOPE_AVAILABLE:
         st.error("DashScope API不可用，无法生成logo。请确保已正确安装dashscope库。")
         return None
-    
-    # 尝试生成logo，最多重试max_retries次
-    for attempt in range(max_retries):
-        try:
-            print(f'----第{attempt + 1}次尝试使用DashScope生成矢量logo，提示词: {vector_style_prompt}----')
-            
-            # 为重试添加随机性，避免生成相同的图像
-            if attempt > 0:
-                retry_prompt = f"{vector_style_prompt}\n\n变化要求: 请生成与之前不同的设计风格，尝试{['更加几何化', '更加有机化', '更加现代化'][attempt % 3]}的设计"
-            else:
-                retry_prompt = vector_style_prompt
-            
-            # 获取下一个DashScope API密钥用于当前请求
-            current_api_key = get_next_dashscope_api_key()
-            print(f'使用DashScope API密钥: {current_api_key[:20]}...{current_api_key[-10:]}')
-            
-            rsp = ImageSynthesis.call(
-                api_key=current_api_key,
-                model="wanx2.0-t2i-turbo",
-                prompt=retry_prompt,
-                n=1,
-                size='1024*1024'
-            )
-            print('DashScope响应: %s' % rsp)
-            
-            if rsp.status_code == HTTPStatus.OK:
-                # 下载生成的图像
-                for result in rsp.output.results:
-                    image_resp = requests.get(result.url)
-                    if image_resp.status_code == 200:
-                        # 加载图像并转换为RGBA模式
-                        img = Image.open(BytesIO(image_resp.content)).convert("RGBA")
-                        print(f"DashScope生成的logo尺寸: {img.size}")
-                        
-                        # 后处理：将白色背景转换为透明（使用更高的阈值）
-                        img_processed = make_background_transparent(img, threshold=120)
-                        print(f"背景透明化处理完成")
-                        
-                        # 验证生成的logo是否有效
-                        if is_valid_logo(img_processed):
-                            print(f"Logo生成成功并通过验证（第{attempt + 1}次尝试）")
-                            return img_processed
-                        else:
-                            print(f"第{attempt + 1}次生成的logo未通过验证，准备重试...")
-                            if attempt < max_retries - 1:
-                                time.sleep(3)  # 增加等待时间，适应Railway环境
-                                continue
-                            else:
-                                print("所有重试都失败，返回最后一次生成的logo")
-                                return img_processed  # 即使验证失败，也返回最后的结果
-                    else:
-                        print(f"下载图像失败, 状态码: {image_resp.status_code}")
-                        if attempt < max_retries - 1:
-                            continue
-            else:
-                print('DashScope调用失败, status_code: %s, code: %s, message: %s' %
-                      (rsp.status_code, rsp.code, rsp.message))
-                if attempt < max_retries - 1:
-                    print(f"第{attempt + 1}次调用失败，准备重试...")
-                    time.sleep(5)  # 增加等待时间，适应Railway环境
-                    continue
+
+    try:
+        current_api_key = get_next_dashscope_api_key()
+        print(f'使用DashScope API密钥(单次): {current_api_key[:20]}...{current_api_key[-10:]}')
+        rsp = ImageSynthesis.call(
+            api_key=current_api_key,
+            model="wanx2.0-t2i-turbo",
+            prompt=vector_style_prompt,
+            n=1,
+            size='1024*1024'
+        )
+        print('DashScope响应: %s' % rsp)
+
+        if rsp.status_code == HTTPStatus.OK:
+            for result in rsp.output.results:
+                image_resp = requests.get(result.url)
+                if image_resp.status_code == 200:
+                    img = Image.open(BytesIO(image_resp.content)).convert("RGBA")
+                    print(f"DashScope生成的logo尺寸: {img.size}")
+                    img_processed = make_background_transparent(img, threshold=120)
+                    print(f"背景透明化处理完成")
+                    return img_processed
                 else:
-                    st.error(f"DashScope API调用失败: {rsp.message}")
-                
-        except Exception as e:
-            print(f"第{attempt + 1}次DashScope调用出错: {e}")
-            if attempt < max_retries - 1:
-                print("准备重试...")
-                time.sleep(5)  # 增加等待时间，适应Railway环境
-                continue
-            else:
-                st.error(f"DashScope API调用错误: {e}")
-    
-    # 所有重试都失败
-    print(f"经过{max_retries}次尝试，logo生成失败")
-    st.error("Logo生成失败，请检查网络连接或稍后重试。")
+                    print(f"下载图像失败, 状态码: {image_resp.status_code}")
+        else:
+            print('DashScope调用失败, status_code: %s, code: %s, message: %s' %
+                  (rsp.status_code, rsp.code, rsp.message))
+    except Exception as e:
+        print(f"DashScope单次调用出错: {e}")
     return None
 
 def change_shirt_color(image, color_hex, apply_texture=False, fabric_type=None):
@@ -557,14 +516,14 @@ def apply_text_to_shirt(image, text, color_hex="#FFFFFF", font_size=80):
     
     return result_image
 
-def apply_logo_to_shirt(shirt_image, logo_image, position="center", size_percent=60, background_color=None):
+def apply_logo_to_shirt(shirt_image, logo_image, position="center", size_percent=60, background_color=None, skip_validation=False):
     """Apply logo to T-shirt image with better blending to reduce shadows"""
     if logo_image is None:
         print("Logo为空，跳过logo应用")
         return shirt_image
     
-    # 验证logo是否有效
-    if not is_valid_logo(logo_image):
+    # 验证logo是否有效（可跳过）
+    if not skip_validation and not is_valid_logo(logo_image):
         print("Logo验证失败，跳过logo应用")
         return shirt_image
     
@@ -686,9 +645,11 @@ def generate_complete_design(design_prompt, variation_id=None):
     if not design_prompt:
         return None, {"error": "Please enter a design prompt"}
     
-    # 获取AI设计建议
+    t0 = time.time()
+    log_debug(f"开始获取AI建议, prompt='{design_prompt}'")
     design_suggestions = get_ai_design_suggestions(design_prompt)
-    
+    log_debug(f"获取AI建议完成, 用时 {time.time()-t0:.2f}s")
+
     if "error" in design_suggestions:
         return None, design_suggestions
     
@@ -723,6 +684,7 @@ def generate_complete_design(design_prompt, variation_id=None):
         color_name = design_suggestions.get("color", {}).get("name", "Custom Color")
         fabric_type = design_suggestions.get("fabric", "Cotton")
         
+        t1 = time.time()
         # 1. 应用颜色和纹理
         colored_shirt = change_shirt_color(
             original_image,
@@ -730,6 +692,7 @@ def generate_complete_design(design_prompt, variation_id=None):
             apply_texture=True,
             fabric_type=fabric_type
         )
+        log_debug(f"应用颜色与纹理完成, 用时 {time.time()-t1:.2f}s, color={color_hex}, fabric={fabric_type}")
         
         # 2. 生成Logo
         logo_description = design_suggestions.get("logo", "")
@@ -753,7 +716,9 @@ def generate_complete_design(design_prompt, variation_id=None):
             
             # 生成透明背景的矢量logo，带有重试机制
             print(f"开始生成logo: {logo_description}")
+            t2 = time.time()
             logo_image = generate_vector_image(logo_prompt, max_retries=3)
+            log_debug(f"生成logo结束, 用时 {time.time()-t2:.2f}s")
             
             if logo_image is None:
                 print(f"Logo生成失败，将继续生成不带logo的设计")
@@ -766,7 +731,7 @@ def generate_complete_design(design_prompt, variation_id=None):
         # 应用Logo (如果有)
         if logo_image:
             # 应用透明背景的logo到T恤
-            final_design = apply_logo_to_shirt(colored_shirt, logo_image, "center", 60)
+            final_design = apply_logo_to_shirt(colored_shirt, logo_image, "center", 60, skip_validation=True)
         
         return final_design, {
             "color": {"hex": color_hex, "name": color_name},

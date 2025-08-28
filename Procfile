@@ -1,1 +1,1 @@
-web: python flask_app.py
+web: gunicorn -w 2 -k gthread -t 120 -b 0.0.0.0:${PORT} flask_app:app
