@@ -477,7 +477,7 @@ def convert_svg_to_png(svg_content):
         return None
 
 # 设置默认生成的设计数量，取代UI上的选择按钮
-DEFAULT_DESIGN_COUNT = 20  # 可以设置为1, 3, 5, 15, 20，分别对应原来的low, medium, high, ultra-high
+DEFAULT_DESIGN_COUNT = 15  # 可以设置为1, 3, 5, 15, 20，分别对应原来的low, medium, high, ultra-high
 
 def get_ai_design_suggestions(user_preferences=None, max_retries=3):
     """Get design suggestions from GPT-4o-mini with more personalized features
@@ -1398,14 +1398,14 @@ def show_high_recommendation_without_explanation():
             with design_area.container():
                 st.markdown("### Generated T-shirt Designs")
                 
-                # Display designs in 5x4 grid
+                # Display designs in 3x5 grid (3 rows, 5 columns)
                 designs = st.session_state.generated_designs
                 
-                # Create 5 rows with 4 columns each
-                for row in range(5):
-                    cols = st.columns(4)
-                    for col in range(4):
-                        design_index = row * 4 + col
+                # Create 3 rows with 5 columns each
+                for row in range(3):
+                    cols = st.columns(5)
+                    for col in range(5):
+                        design_index = row * 5 + col
                         if design_index < len(designs):
                             with cols[col]:
                                 design, info = designs[design_index]
