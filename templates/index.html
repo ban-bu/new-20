@@ -18,6 +18,41 @@
             background-color: #f8f9fa;
         }
         
+        .design-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .design-item {
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .design-item:hover {
+            border-color: #0d6efd;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        
+        .design-item img {
+            width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+        
+        .design-number {
+            text-align: center;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #495057;
+            font-size: 12px;
+        }
+        
         .progress-container {
             margin-top: 20px;
         }
@@ -27,8 +62,6 @@
             margin-top: 15px;
             color: #6c757d;
         }
-        
-
         
         .input-section {
             background: white;
@@ -49,16 +82,6 @@
         
         .btn-generate:hover {
             transform: scale(1.05);
-        }
-        
-
-        
-        .design-selector {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-left: 4px solid #0d6efd;
         }
     </style>
 </head>
@@ -89,6 +112,9 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Generated Designs Grid -->
+                    <div id="designsGrid" class="design-grid" style="display: none;"></div>
                 </div>
             </div>
 
@@ -97,13 +123,7 @@
                 <div class="input-section sticky-top">
                     <h4 class="mb-3">Design Options</h4>
                     
-                    <!-- Design Selector (hidden initially) -->
-                    <div id="designSelector" class="design-selector" style="display: none;">
-                        <h5>Choose Your Favorite Design</h5>
-                        <select class="form-control" id="designSelect" onchange="selectDesign()">
-                            <option value="0">Select a design to view</option>
-                        </select>
-                    </div>
+
                     
                     <!-- Info Box -->
                     <div class="alert alert-info" role="alert">
@@ -170,7 +190,6 @@
     <script>
         let isGenerating = false;
         let generatedDesigns = [];
-        let currentDesignIndex = 0;
 
         function generateDesigns() {
             if (isGenerating) return;
@@ -188,7 +207,7 @@
             document.getElementById('generateBtn').disabled = true;
             document.getElementById('generateBtn').innerHTML = 'Generating...';
             document.getElementById('progressContainer').style.display = 'block';
-            document.getElementById('designSelector').style.display = 'none';
+            document.getElementById('designsGrid').style.display = 'none';
             document.getElementById('statsContainer').style.display = 'none';
             
             // Show generation state in preview
@@ -227,16 +246,14 @@
                     const duration = (endTime - startTime) / 1000;
                     
                     generatedDesigns = data.designs;
-                    currentDesignIndex = 0;
                     
                     // Update progress to 100%
                     document.getElementById('progressBar').style.width = '100%';
                     document.getElementById('loadingMessage').innerHTML = 
                         `Generated ${data.total} designs in ${duration.toFixed(1)} seconds!`;
                     
-                    // Show design selector and regenerate button
-                    setupDesignSelector(data.designs);
-                    displaySelectedDesign(0);
+                    // Show designs grid
+                    displayDesigns(data.designs);
                     
                     // Show stats
                     document.getElementById('statsContent').innerHTML = `
@@ -266,42 +283,28 @@
             });
         }
 
-        function setupDesignSelector(designs) {
-            const selector = document.getElementById('designSelect');
-            selector.innerHTML = '';
+        function displayDesigns(designs) {
+            const designsGrid = document.getElementById('designsGrid');
+            designsGrid.innerHTML = '';
+            
+            if (designs.length === 0) {
+                designsGrid.innerHTML = '<div class="text-center text-muted">No designs generated</div>';
+                return;
+            }
             
             designs.forEach((design, index) => {
-                const option = document.createElement('option');
-                option.value = index;
-                option.textContent = `Design ${index + 1}`;
-                selector.appendChild(option);
+                const designItem = document.createElement('div');
+                designItem.className = 'design-item';
+                designItem.innerHTML = `
+                    <div class="design-number">Design ${index + 1}</div>
+                    <img src="${design.image}" alt="Design ${index + 1}" loading="lazy">
+                `;
+                designsGrid.appendChild(designItem);
             });
             
-            document.getElementById('designSelector').style.display = 'block';
-        }
-
-        function selectDesign() {
-            const selector = document.getElementById('designSelect');
-            const selectedIndex = parseInt(selector.value);
-            currentDesignIndex = selectedIndex;
-            displaySelectedDesign(selectedIndex);
-        }
-
-        function displaySelectedDesign(index) {
-            if (!generatedDesigns || generatedDesigns.length === 0) return;
-            
-            const design = generatedDesigns[index];
-            const totalDesigns = generatedDesigns.length;
-            
-            document.getElementById('designPreview').innerHTML = `
-                <div class="text-center">
-                    <img src="${design.image}" alt="Design ${index + 1}" class="img-fluid" style="max-height: 300px;">
-                    <p class="mt-3"><strong>Design ${index + 1} of ${totalDesigns}</strong></p>
-                </div>
-            `;
-            
-            // Update selector
-            document.getElementById('designSelect').value = index;
+            // Hide preview area and show grid
+            document.getElementById('designPreview').style.display = 'none';
+            designsGrid.style.display = 'grid';
         }
 
 

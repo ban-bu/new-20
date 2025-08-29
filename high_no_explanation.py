@@ -1396,16 +1396,21 @@ def show_high_recommendation_without_explanation():
         # Display current T-shirt design state
         if len(st.session_state.generated_designs) > 0:
             with design_area.container():
-                st.markdown("### Your Custom T-shirt Design")
+                st.markdown("### Generated T-shirt Designs")
                 
-                # Display the selected design
-                selected_design, selected_info = st.session_state.generated_designs[st.session_state.selected_design_index]
-                st.image(selected_design, use_column_width=True)
+                # Display designs in 5x4 grid
+                designs = st.session_state.generated_designs
                 
-                # Add design number indicator
-                current_design = st.session_state.selected_design_index + 1
-                total_designs = len(st.session_state.generated_designs)
-                st.markdown(f"**Design {current_design} of {total_designs}**")
+                # Create 5 rows with 4 columns each
+                for row in range(5):
+                    cols = st.columns(4)
+                    for col in range(4):
+                        design_index = row * 4 + col
+                        if design_index < len(designs):
+                            with cols[col]:
+                                design, info = designs[design_index]
+                                st.image(design, use_column_width=True)
+                                st.markdown(f"<p style='text-align:center; font-size:12px;'>Design {design_index+1}</p>", unsafe_allow_html=True)
         else:
             # Display original blank T-shirt
             with design_area.container():
@@ -1421,25 +1426,7 @@ def show_high_recommendation_without_explanation():
         # Design options and control area
         st.markdown("### Design Options")
         
-        # Show design selector if designs are generated
-        if len(st.session_state.generated_designs) > 0:
-            st.markdown("#### Choose Your Favorite Design")
-            
-            design_options = [f"Design {i+1}" for i in range(len(st.session_state.generated_designs))]
-            selected_option = st.selectbox(
-                "Select a design to view:",
-                options=design_options,
-                index=st.session_state.selected_design_index,
-                key="design_selector"
-            )
-            
-            # Update selected design index
-            new_index = design_options.index(selected_option)
-            if new_index != st.session_state.selected_design_index:
-                st.session_state.selected_design_index = new_index
-                st.rerun()
-            
-            st.markdown("---")
+
         
         # Design prompt input area
         st.markdown("#### Describe your desired T-shirt design:")
