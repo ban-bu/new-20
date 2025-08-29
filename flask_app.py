@@ -111,79 +111,15 @@ _api_lock = threading.Lock()
 _ai_call_records = []
 _call_records_lock = threading.Lock()
 
-# DashScope调用限流控制 - 优化版分组限流
+# DashScope调用限流控制 - 2次/秒限制
 _dashscope_call_times = []
 _dashscope_rate_lock = threading.Lock()
 _dashscope_wait_times = []  # 记录等待时间统计
-
-# 文生图API全局限流策略 - 严格遵守2次/秒限制
-DASHSCOPE_MAX_CALLS_PER_SECOND = 2  # 全局限制：2次/秒
+DASHSCOPE_MAX_CALLS_PER_SECOND = 2
 DASHSCOPE_TIME_WINDOW = 1.0  # 1秒时间窗口
-DALLE_MAX_CALLS_PER_SECOND = 2  # DALL-E API也遵守2次/秒限制
 
-# 全局文生图API限流状态（所有文生图API共享）
-_all_image_gen_call_times = []  # 所有文生图API调用时间记录
-_all_image_gen_rate_lock = threading.Lock()  # 全局文生图限流锁
-_all_image_gen_wait_times = []  # 等待时间统计
-
-# 保持原有DashScope分组数据结构（用于统计和监控）
-DASHSCOPE_GROUPS = 4  
-DASHSCOPE_KEYS_PER_GROUP = len(DASHSCOPE_API_KEYS) // DASHSCOPE_GROUPS
-_dashscope_group_call_times = [[] for _ in range(DASHSCOPE_GROUPS)]
-_dashscope_group_locks = [threading.Lock() for _ in range(DASHSCOPE_GROUPS)]
-_dashscope_group_wait_times = [[] for _ in range(DASHSCOPE_GROUPS)]
-
-def wait_for_image_generation_rate_limit(api_type="DashScope"):
-    """全局文生图API限流控制 - 严格遵守2次/秒限制
-    
-    所有文生图API（DashScope、DALL-E等）共享全局2次/秒限制
-    
-    Args:
-        api_type: API类型，用于日志记录 ("DashScope", "DALL-E"等)
-    Returns:
-        tuple: (调用时间, 等待时间)
-    """
-    with _all_image_gen_rate_lock:
-        current_time = time.time()
-        
-        # 清理超过时间窗口的调用记录
-        _all_image_gen_call_times[:] = [t for t in _all_image_gen_call_times if current_time - t < DASHSCOPE_TIME_WINDOW]
-        
-        wait_time = 0
-        # 如果当前时间窗口内的调用数已达上限
-        if len(_all_image_gen_call_times) >= DASHSCOPE_MAX_CALLS_PER_SECOND:
-            # 计算需要等待的时间
-            oldest_call = min(_all_image_gen_call_times)
-            wait_time = DASHSCOPE_TIME_WINDOW - (current_time - oldest_call)
-            
-            if wait_time > 0:
-                log(f"文生图API全局限流等待 api_type={api_type} wait_time={wait_time:.3f}s current_calls={len(_all_image_gen_call_times)}")
-                _all_image_gen_wait_times.append(wait_time)  # 记录等待时间
-                time.sleep(wait_time)
-                
-                # 重新获取当前时间并清理记录
-                current_time = time.time()
-                _all_image_gen_call_times[:] = [t for t in _all_image_gen_call_times if current_time - t < DASHSCOPE_TIME_WINDOW]
-        
-        # 记录当前调用时间
-        _all_image_gen_call_times.append(current_time)
-        log(f"文生图API调用许可 api_type={api_type} current_calls_in_window={len(_all_image_gen_call_times)}")
-        return current_time, wait_time
-
-def wait_for_dashscope_rate_limit(api_key_index=None):
-    """DashScope调用限流控制 - 兼容旧版接口，实际使用全局限流
-    
-    Args:
-        api_key_index: API密钥索引（保留兼容性，实际不使用分组）
-    Returns:
-        tuple: (调用时间, 分组ID, 等待时间) - 保持返回格式兼容
-    """
-    call_time, wait_time = wait_for_image_generation_rate_limit("DashScope")
-    # 为了保持兼容性，返回原有格式，但group_id设为0
-    return call_time, 0, wait_time
-
-def wait_for_dashscope_rate_limit_legacy():
-    """DashScope调用限流控制 - 兼容旧版全局限流"""
+def wait_for_dashscope_rate_limit():
+    """DashScope调用限流控制 - 确保每秒不超过2次调用"""
     with _dashscope_rate_lock:
         current_time = time.time()
         
@@ -282,15 +218,14 @@ def print_ai_call_summary():
             log(f"  ✅ 成功: {success_count}次 | ❌ 失败: {failed_count}次 | 🔄 重试: {retry_count}次")
             log(f"  ⏱️  总耗时: {total_duration:.1f}ms | 平均: {avg_duration:.1f}ms")
             
-            # 文生图API全局限流统计
-            if _all_image_gen_wait_times:
-                total_wait_time = sum(_all_image_gen_wait_times)
-                avg_wait_time = total_wait_time / len(_all_image_gen_wait_times)
-                max_wait_time = max(_all_image_gen_wait_times)
-                log(f"  🚦 全局限流统计: 等待{len(_all_image_gen_wait_times)}次 | 总等待: {total_wait_time:.3f}s | 平均: {avg_wait_time:.3f}s | 最长: {max_wait_time:.3f}s")
-                log(f"  🎯 限流效果: 严格遵守2次/秒限制，确保API合规调用")
+            # 限流统计
+            if _dashscope_wait_times:
+                total_wait_time = sum(_dashscope_wait_times)
+                avg_wait_time = total_wait_time / len(_dashscope_wait_times)
+                max_wait_time = max(_dashscope_wait_times)
+                log(f"  🚦 限流统计: 等待{len(_dashscope_wait_times)}次 | 总等待: {total_wait_time:.3f}s | 平均: {avg_wait_time:.3f}s | 最长: {max_wait_time:.3f}s")
             else:
-                log(f"  🚦 全局限流统计: 无等待 (调用频率在2次/秒限制范围内)")
+                log(f"  🚦 限流统计: 无等待 (调用频率在限制范围内)")
             
             # 失败原因统计
             failure_reasons = {}
@@ -329,80 +264,6 @@ def clear_ai_call_records():
     # 同时清空限流统计
     with _dashscope_rate_lock:
         _dashscope_wait_times.clear()
-    # 清空分组限流统计
-    for i in range(DASHSCOPE_GROUPS):
-        with _dashscope_group_locks[i]:
-            _dashscope_group_wait_times[i].clear()
-
-# 智能缓存系统 - 大幅提升重复请求性能
-import hashlib
-_cache_lock = threading.Lock()
-_ai_suggestions_cache = {}  # AI建议缓存
-_logo_generation_cache = {}  # Logo生成缓存
-_shirt_color_cache = {}  # T恤变色缓存
-
-# 缓存配置
-MAX_CACHE_SIZE = 1000  # 最大缓存条目数
-CACHE_EXPIRE_HOURS = 24  # 缓存过期时间(小时)
-
-def get_cache_key(data_dict):
-    """生成缓存键"""
-    # 将字典转换为排序后的字符串，然后计算hash
-    cache_str = str(sorted(data_dict.items()))
-    return hashlib.md5(cache_str.encode()).hexdigest()
-
-def is_cache_expired(timestamp, expire_hours=CACHE_EXPIRE_HOURS):
-    """检查缓存是否过期"""
-    return (time.time() - timestamp) > (expire_hours * 3600)
-
-def cleanup_expired_cache(cache_dict):
-    """清理过期的缓存条目"""
-    current_time = time.time()
-    expired_keys = [
-        key for key, (_, timestamp) in cache_dict.items() 
-        if is_cache_expired(timestamp)
-    ]
-    for key in expired_keys:
-        del cache_dict[key]
-    return len(expired_keys)
-
-def get_from_cache(cache_dict, cache_key):
-    """从缓存获取数据"""
-    with _cache_lock:
-        if cache_key in cache_dict:
-            data, timestamp = cache_dict[cache_key]
-            if not is_cache_expired(timestamp):
-                return data
-            else:
-                # 删除过期缓存
-                del cache_dict[cache_key]
-    return None
-
-def save_to_cache(cache_dict, cache_key, data):
-    """保存数据到缓存"""
-    with _cache_lock:
-        # 如果缓存已满，清理过期项
-        if len(cache_dict) >= MAX_CACHE_SIZE:
-            cleaned = cleanup_expired_cache(cache_dict)
-            log(f"缓存清理 cleaned={cleaned} remaining={len(cache_dict)}")
-            
-            # 如果清理后仍然满，删除最旧的缓存项
-            if len(cache_dict) >= MAX_CACHE_SIZE:
-                oldest_key = min(cache_dict.keys(), key=lambda k: cache_dict[k][1])
-                del cache_dict[oldest_key]
-                log(f"缓存满，删除最旧项 key={oldest_key}")
-        
-        cache_dict[cache_key] = (data, time.time())
-
-def get_cache_stats():
-    """获取缓存统计信息"""
-    with _cache_lock:
-        return {
-            "ai_suggestions": len(_ai_suggestions_cache),
-            "logo_generation": len(_logo_generation_cache),
-            "shirt_color": len(_shirt_color_cache),
-            "total": len(_ai_suggestions_cache) + len(_logo_generation_cache) + len(_shirt_color_cache)
-        }
 
 # 设置默认生成的设计数量
 DEFAULT_DESIGN_COUNT = 20
@@ -460,17 +321,12 @@ def get_next_gpt4o_api_key():
         return key
 
 def get_next_dashscope_api_key():
-    """获取下一个DashScope API密钥（轮询方式）
-    
-    Returns:
-        tuple: (api_key, key_index) - 返回密钥和索引用于分组限流
-    """
+    """获取下一个DashScope API密钥（轮询方式）"""
     global _dashscope_api_key_counter
     with _api_lock:
-        key_index = _dashscope_api_key_counter % len(DASHSCOPE_API_KEYS)
-        key = DASHSCOPE_API_KEYS[key_index]
+        key = DASHSCOPE_API_KEYS[_dashscope_api_key_counter % len(DASHSCOPE_API_KEYS)]
         _dashscope_api_key_counter += 1
-        return key, key_index
+        return key
 
 def make_background_transparent(image, threshold=100):
     """
@@ -931,8 +787,8 @@ def generate_vector_image(prompt, background_color=None, max_retries=3, shirt_co
     
     # 尝试生成logo，最多重试max_retries次
     for attempt in range(max_retries):
-        # 获取下一个DashScope API密钥用于当前请求 - 新版分组限流
-        current_api_key, key_index = get_next_dashscope_api_key()
+        # 获取下一个DashScope API密钥用于当前请求
+        current_api_key = get_next_dashscope_api_key()
         api_start = time.time()
         try:
             # 为重试添加随机性，避免生成相同的图像
@@ -941,10 +797,10 @@ def generate_vector_image(prompt, background_color=None, max_retries=3, shirt_co
             else:
                 retry_prompt = vector_style_prompt
             
-            log(f'Logo生成请求 attempt={attempt+1} key={_mask_key(current_api_key)} key_idx={key_index}')
+            log(f'Logo生成请求 attempt={attempt+1} key={_mask_key(current_api_key)}')
             
-            # DashScope调用限流控制 - 分组限流策略，性能大幅提升
-            rate_limit_start, group_id, wait_time = wait_for_dashscope_rate_limit(key_index)
+            # DashScope调用限流控制 - 确保每秒不超过2次调用
+            rate_limit_start = wait_for_dashscope_rate_limit()
             
             rsp = ImageSynthesis.call(
                 api_key=current_api_key,
@@ -1077,7 +933,7 @@ def generate_vector_image(prompt, background_color=None, max_retries=3, shirt_co
 
 @log_step("change_shirt_color")
 def change_shirt_color(image, color_hex, apply_texture=False, fabric_type=None):
-    """Change T-shirt color with optional fabric texture - 性能优化版"""
+    """Change T-shirt color with optional fabric texture"""
     start_time = time.time()
     
     # 转换十六进制颜色为RGB
@@ -1087,72 +943,34 @@ def change_shirt_color(image, color_hex, apply_texture=False, fabric_type=None):
     # 创建副本避免修改原图
     colored_image = image.copy().convert("RGBA")
     
-    try:
-        # 性能优化：使用NumPy进行向量化操作
-        import numpy as np
-        
-        # 将PIL图像转换为numpy数组
-        img_array = np.array(colored_image)
-        
-        # 白色阈值 - 调整这个值可以控制哪些像素被视为白色/浅色并被改变
-        threshold = 200
-        
-        # 创建掩码：识别白色/浅色区域且不透明的像素
-        mask = (
-            (img_array[:, :, 0] > threshold) & 
-            (img_array[:, :, 1] > threshold) & 
-            (img_array[:, :, 2] > threshold) & 
-            (img_array[:, :, 3] > 0)
-        )
-        
-        # 统计信息
-        pixel_count = img_array.shape[0] * img_array.shape[1]
-        changed_pixels = np.sum(mask)
-        
-        # 向量化操作：同时更新所有符合条件的像素
-        img_array[mask, 0] = color_rgb[0]  # R
-        img_array[mask, 1] = color_rgb[1]  # G 
-        img_array[mask, 2] = color_rgb[2]  # B
-        # Alpha通道保持不变
-        
-        # 将numpy数组转换回PIL图像
-        colored_image = Image.fromarray(img_array, 'RGBA')
-        
-        duration = (time.time() - start_time) * 1000
-        change_ratio = (changed_pixels / pixel_count) * 100 if pixel_count > 0 else 0
-        log(f"T恤改色完成(NumPy优化) duration={duration:.1f}ms changed={changed_pixels}/{pixel_count}({change_ratio:.1f}%)")
-        
-    except ImportError:
-        # NumPy不可用时的回退方案 - 使用原始像素循环方法
-        log("NumPy不可用，使用传统像素循环方法")
-        
-        # 获取图像数据
-        data = colored_image.getdata()
-        
-        # 创建新数据
-        new_data = []
-        threshold = 200
-        
-        pixel_count = 0
-        changed_pixels = 0
-        for item in data:
-            pixel_count += 1
-            # 判断是否是白色/浅色区域 (RGB值都很高)
-            if item[0] > threshold and item[1] > threshold and item[2] > threshold and item[3] > 0:
-                # 保持原透明度，改变颜色
-                new_color = (color_rgb[0], color_rgb[1], color_rgb[2], item[3])
-                new_data.append(new_color)
-                changed_pixels += 1
-            else:
-                # 保持其他颜色不变
-                new_data.append(item)
-        
-        # 更新图像数据
-        colored_image.putdata(new_data)
-        
-        duration = (time.time() - start_time) * 1000
-        change_ratio = (changed_pixels / pixel_count) * 100 if pixel_count > 0 else 0
-        log(f"T恤改色完成(传统方法) duration={duration:.1f}ms changed={changed_pixels}/{pixel_count}({change_ratio:.1f}%)")
+    # 获取图像数据
+    data = colored_image.getdata()
+    
+    # 创建新数据
+    new_data = []
+    # 白色阈值 - 调整这个值可以控制哪些像素被视为白色/浅色并被改变
+    threshold = 200
+    
+    pixel_count = 0
+    changed_pixels = 0
+    for item in data:
+        pixel_count += 1
+        # 判断是否是白色/浅色区域 (RGB值都很高)
+        if item[0] > threshold and item[1] > threshold and item[2] > threshold and item[3] > 0:
+            # 保持原透明度，改变颜色
+            new_color = (color_rgb[0], color_rgb[1], color_rgb[2], item[3])
+            new_data.append(new_color)
+            changed_pixels += 1
+        else:
+            # 保持其他颜色不变
+            new_data.append(item)
+    
+    # 更新图像数据
+    colored_image.putdata(new_data)
+    
+    duration = (time.time() - start_time) * 1000
+    change_ratio = (changed_pixels / pixel_count) * 100 if pixel_count > 0 else 0
+    log(f"T恤改色完成 duration={duration:.1f}ms changed={changed_pixels}/{pixel_count}({change_ratio:.1f}%)")
     
     # 如果需要应用纹理
     # 纹理阶段已禁用

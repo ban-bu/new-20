@@ -105,60 +105,40 @@ _api_lock = threading.Lock()
 _ai_call_records = []
 _call_records_lock = threading.Lock()
 
-# DashScope调用限流控制 - 严格遵守2次/秒全局限制
+# DashScope调用限流控制 - 2次/秒限制
 _dashscope_call_times = []
 _dashscope_rate_lock = threading.Lock()
 _dashscope_wait_times = []  # 记录等待时间统计
-
-# 文生图API全局限流策略 - 严格遵守2次/秒限制
-DASHSCOPE_MAX_CALLS_PER_SECOND = 2  # 全局限制：2次/秒
+DASHSCOPE_MAX_CALLS_PER_SECOND = 2
 DASHSCOPE_TIME_WINDOW = 1.0  # 1秒时间窗口
 
-# 全局文生图API限流状态
-_all_image_gen_call_times = []  # 所有文生图API调用时间记录
-_all_image_gen_rate_lock = threading.Lock()  # 全局文生图限流锁
-_all_image_gen_wait_times = []  # 等待时间统计
-
-# 保持分组数据结构（仅用于统计和监控）
-DASHSCOPE_GROUPS = 4  
-DASHSCOPE_KEYS_PER_GROUP = len(DASHSCOPE_API_KEYS) // DASHSCOPE_GROUPS
-_dashscope_group_call_times = [[] for _ in range(DASHSCOPE_GROUPS)]
-_dashscope_group_locks = [threading.Lock() for _ in range(DASHSCOPE_GROUPS)]
-_dashscope_group_wait_times = [[] for _ in range(DASHSCOPE_GROUPS)]
-
-def wait_for_image_generation_rate_limit(api_type="DashScope"):
-    """全局文生图API限流控制 - 严格遵守2次/秒限制"""
-    with _all_image_gen_rate_lock:
+def wait_for_dashscope_rate_limit():
+    """DashScope调用限流控制 - 确保每秒不超过2次调用"""
+    with _dashscope_rate_lock:
         current_time = time.time()
         
         # 清理超过时间窗口的调用记录
-        _all_image_gen_call_times[:] = [t for t in _all_image_gen_call_times if current_time - t < DASHSCOPE_TIME_WINDOW]
+        _dashscope_call_times[:] = [t for t in _dashscope_call_times if current_time - t < DASHSCOPE_TIME_WINDOW]
         
-        wait_time = 0
         # 如果当前时间窗口内的调用数已达上限
-        if len(_all_image_gen_call_times) >= DASHSCOPE_MAX_CALLS_PER_SECOND:
+        if len(_dashscope_call_times) >= DASHSCOPE_MAX_CALLS_PER_SECOND:
             # 计算需要等待的时间
-            oldest_call = min(_all_image_gen_call_times)
+            oldest_call = min(_dashscope_call_times)
             wait_time = DASHSCOPE_TIME_WINDOW - (current_time - oldest_call)
             
             if wait_time > 0:
-                print(f"文生图API全局限流等待 api_type={api_type} wait_time={wait_time:.3f}s current_calls={len(_all_image_gen_call_times)}")
-                _all_image_gen_wait_times.append(wait_time)  # 记录等待时间
+                print(f"DashScope限流等待 wait_time={wait_time:.3f}s current_calls={len(_dashscope_call_times)}")
+                _dashscope_wait_times.append(wait_time)  # 记录等待时间
                 time.sleep(wait_time)
                 
                 # 重新获取当前时间并清理记录
                 current_time = time.time()
-                _all_image_gen_call_times[:] = [t for t in _all_image_gen_call_times if current_time - t < DASHSCOPE_TIME_WINDOW]
+                _dashscope_call_times[:] = [t for t in _dashscope_call_times if current_time - t < DASHSCOPE_TIME_WINDOW]
         
         # 记录当前调用时间
-        _all_image_gen_call_times.append(current_time)
-        print(f"文生图API调用许可 api_type={api_type} current_calls_in_window={len(_all_image_gen_call_times)}")
-        return current_time, wait_time
-
-def wait_for_dashscope_rate_limit():
-    """DashScope调用限流控制 - 兼容旧版接口，实际使用全局限流"""
-    call_time, wait_time = wait_for_image_generation_rate_limit("DashScope")
-    return call_time
+        _dashscope_call_times.append(current_time)
+        print(f"DashScope调用许可 current_calls_in_window={len(_dashscope_call_times)}")
+        return current_time
 
 def add_ai_call_record(api_type, model, api_key, start_time, end_time, status, reason=None, attempt=1):
     """添加AI调用记录"""
@@ -244,15 +224,14 @@ def print_ai_call_summary():
             print(f"  ✅ 成功: {success_count}次 | ❌ 失败: {failed_count}次 | 🔄 重试: {retry_count}次")
             print(f"  ⏱️  总耗时: {total_duration:.1f}ms | 平均: {avg_duration:.1f}ms")
             
-            # 文生图API全局限流统计
-            if _all_image_gen_wait_times:
-                total_wait_time = sum(_all_image_gen_wait_times)
-                avg_wait_time = total_wait_time / len(_all_image_gen_wait_times)
-                max_wait_time = max(_all_image_gen_wait_times)
-                print(f"  🚦 全局限流统计: 等待{len(_all_image_gen_wait_times)}次 | 总等待: {total_wait_time:.3f}s | 平均: {avg_wait_time:.3f}s | 最长: {max_wait_time:.3f}s")
-                print(f"  🎯 限流效果: 严格遵守2次/秒限制，确保API合规调用")
+            # 限流统计
+            if _dashscope_wait_times:
+                total_wait_time = sum(_dashscope_wait_times)
+                avg_wait_time = total_wait_time / len(_dashscope_wait_times)
+                max_wait_time = max(_dashscope_wait_times)
+                print(f"  🚦 限流统计: 等待{len(_dashscope_wait_times)}次 | 总等待: {total_wait_time:.3f}s | 平均: {avg_wait_time:.3f}s | 最长: {max_wait_time:.3f}s")
             else:
-                print(f"  🚦 全局限流统计: 无等待 (调用频率在2次/秒限制范围内)")
+                print(f"  🚦 限流统计: 无等待 (调用频率在限制范围内)")
             
             # 失败原因统计
             failure_reasons = {}
@@ -291,9 +270,6 @@ def clear_ai_call_records():
     # 同时清空限流统计
     with _dashscope_rate_lock:
         _dashscope_wait_times.clear()
-    # 清空全局文生图限流统计
-    with _all_image_gen_rate_lock:
-        _all_image_gen_wait_times.clear()
 
 def get_next_api_key():
     """获取下一个DALL-E API密钥（轮询方式）"""
@@ -315,8 +291,7 @@ def get_next_dashscope_api_key():
     """获取下一个DashScope API密钥（轮询方式）"""
     global _dashscope_api_key_counter
     with _api_lock:
-        key_index = _dashscope_api_key_counter % len(DASHSCOPE_API_KEYS)
-        key = DASHSCOPE_API_KEYS[key_index]
+        key = DASHSCOPE_API_KEYS[_dashscope_api_key_counter % len(DASHSCOPE_API_KEYS)]
         _dashscope_api_key_counter += 1
         return key
 
