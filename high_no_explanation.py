@@ -105,6 +105,41 @@ _api_lock = threading.Lock()
 _ai_call_records = []
 _call_records_lock = threading.Lock()
 
+# DashScope调用限流控制 - 2次/秒限制
+_dashscope_call_times = []
+_dashscope_rate_lock = threading.Lock()
+_dashscope_wait_times = []  # 记录等待时间统计
+DASHSCOPE_MAX_CALLS_PER_SECOND = 2
+DASHSCOPE_TIME_WINDOW = 1.0  # 1秒时间窗口
+
+def wait_for_dashscope_rate_limit():
+    """DashScope调用限流控制 - 确保每秒不超过2次调用"""
+    with _dashscope_rate_lock:
+        current_time = time.time()
+        
+        # 清理超过时间窗口的调用记录
+        _dashscope_call_times[:] = [t for t in _dashscope_call_times if current_time - t < DASHSCOPE_TIME_WINDOW]
+        
+        # 如果当前时间窗口内的调用数已达上限
+        if len(_dashscope_call_times) >= DASHSCOPE_MAX_CALLS_PER_SECOND:
+            # 计算需要等待的时间
+            oldest_call = min(_dashscope_call_times)
+            wait_time = DASHSCOPE_TIME_WINDOW - (current_time - oldest_call)
+            
+            if wait_time > 0:
+                print(f"DashScope限流等待 wait_time={wait_time:.3f}s current_calls={len(_dashscope_call_times)}")
+                _dashscope_wait_times.append(wait_time)  # 记录等待时间
+                time.sleep(wait_time)
+                
+                # 重新获取当前时间并清理记录
+                current_time = time.time()
+                _dashscope_call_times[:] = [t for t in _dashscope_call_times if current_time - t < DASHSCOPE_TIME_WINDOW]
+        
+        # 记录当前调用时间
+        _dashscope_call_times.append(current_time)
+        print(f"DashScope调用许可 current_calls_in_window={len(_dashscope_call_times)}")
+        return current_time
+
 def add_ai_call_record(api_type, model, api_key, start_time, end_time, status, reason=None, attempt=1):
     """添加AI调用记录"""
     with _call_records_lock:
@@ -114,6 +149,8 @@ def add_ai_call_record(api_type, model, api_key, start_time, end_time, status, r
             'api_key': _mask_key(api_key),
             'start_time': start_time,
             'end_time': end_time,
+            'start_time_str': time.strftime('%H:%M:%S', time.localtime(start_time)) + f'.{int((start_time % 1) * 1000):03d}',
+            'end_time_str': time.strftime('%H:%M:%S', time.localtime(end_time)) + f'.{int((end_time % 1) * 1000):03d}',
             'duration_ms': (end_time - start_time) * 1000,
             'status': status,  # 'success', 'failed', 'retry'
             'reason': reason,  # 失败或重试原因
@@ -173,7 +210,7 @@ def print_ai_call_summary():
             for i, record in enumerate(gpt4o_calls, 1):
                 status_icon = "✅" if record['status'] == 'success' else "❌" if record['status'] == 'failed' else "🔄"
                 reason_text = f" ({record['reason']})" if record['reason'] else ""
-                print(f"    {i:2d}. {status_icon} key={record['api_key']} duration={record['duration_ms']:.1f}ms attempt={record['attempt']}{reason_text}")
+                print(f"    {i:2d}. {status_icon} key={record['api_key']} 发送={record['start_time_str']} 接收={record['end_time_str']} duration={record['duration_ms']:.1f}ms attempt={record['attempt']}{reason_text}")
         
         # DashScope统计
         if dashscope_calls:
@@ -186,6 +223,15 @@ def print_ai_call_summary():
             
             print(f"  ✅ 成功: {success_count}次 | ❌ 失败: {failed_count}次 | 🔄 重试: {retry_count}次")
             print(f"  ⏱️  总耗时: {total_duration:.1f}ms | 平均: {avg_duration:.1f}ms")
+            
+            # 限流统计
+            if _dashscope_wait_times:
+                total_wait_time = sum(_dashscope_wait_times)
+                avg_wait_time = total_wait_time / len(_dashscope_wait_times)
+                max_wait_time = max(_dashscope_wait_times)
+                print(f"  🚦 限流统计: 等待{len(_dashscope_wait_times)}次 | 总等待: {total_wait_time:.3f}s | 平均: {avg_wait_time:.3f}s | 最长: {max_wait_time:.3f}s")
+            else:
+                print(f"  🚦 限流统计: 无等待 (调用频率在限制范围内)")
             
             # 失败原因统计
             failure_reasons = {}
@@ -200,7 +246,7 @@ def print_ai_call_summary():
             for i, record in enumerate(dashscope_calls, 1):
                 status_icon = "✅" if record['status'] == 'success' else "❌" if record['status'] == 'failed' else "🔄"
                 reason_text = f" ({record['reason']})" if record['reason'] else ""
-                print(f"    {i:2d}. {status_icon} key={record['api_key']} duration={record['duration_ms']:.1f}ms attempt={record['attempt']}{reason_text}")
+                print(f"    {i:2d}. {status_icon} key={record['api_key']} 发送={record['start_time_str']} 接收={record['end_time_str']} duration={record['duration_ms']:.1f}ms attempt={record['attempt']}{reason_text}")
         
         # 总体统计
         total_calls = len(_ai_call_records)
@@ -221,6 +267,9 @@ def clear_ai_call_records():
     """清空AI调用记录"""
     with _call_records_lock:
         _ai_call_records.clear()
+    # 同时清空限流统计
+    with _dashscope_rate_lock:
+        _dashscope_wait_times.clear()
 
 def get_next_api_key():
     """获取下一个DALL-E API密钥（轮询方式）"""
@@ -565,6 +614,9 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
             
             print(f'Logo生成请求 attempt={attempt+1} key={current_api_key[:6]}...{current_api_key[-4:]}')
             
+            # DashScope调用限流控制 - 确保每秒不超过2次调用
+            rate_limit_start = wait_for_dashscope_rate_limit()
+            
             rsp = ImageSynthesis.call(
                 api_key=current_api_key,
                 model="wanx2.0-t2i-turbo",
@@ -624,8 +676,14 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                         retry_time = (time.time() - start_time) * 1000
                         retry_reasons.append(f"{reason}@{retry_time:.0f}ms")
                         print(f"Logo生成重试 attempt={attempt+1}/{max_retries} reason={reason} time={retry_time:.1f}ms")
+                        
                         if attempt < max_retries - 1:
+                            # 记录重试调用
+                            add_ai_call_record('DashScope', 'wanx2.0-t2i-turbo', current_api_key, api_start, api_end, 'retry', reason, attempt+1)
                             continue
+                        else:
+                            # 记录最终失败调用
+                            add_ai_call_record('DashScope', 'wanx2.0-t2i-turbo', current_api_key, api_start, api_end, 'failed', reason, attempt+1)
             else:
                 reason = f"API失败{rsp.status_code}"
                 if hasattr(rsp, 'message'):
@@ -633,15 +691,21 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                 retry_time = (time.time() - start_time) * 1000
                 retry_reasons.append(f"{reason}@{retry_time:.0f}ms")
                 print(f"Logo生成重试 attempt={attempt+1}/{max_retries} reason={reason} time={retry_time:.1f}ms")
+                
                 if attempt < max_retries - 1:
+                    # 记录重试调用
+                    add_ai_call_record('DashScope', 'wanx2.0-t2i-turbo', current_api_key, api_start, api_end, 'retry', reason, attempt+1)
                     time.sleep(5)  # 增加等待时间，适应Railway环境
                     continue
                 else:
+                    # 记录最终失败调用
+                    add_ai_call_record('DashScope', 'wanx2.0-t2i-turbo', current_api_key, api_start, api_end, 'failed', reason, attempt+1)
                     print(f"Logo生成失败 重试汇总={retry_reasons}")
                     st.error(f"DashScope API调用失败: {rsp.message}")
                 
         except Exception as e:
             error_str = str(e)
+            api_end = time.time()
             retry_time = (time.time() - start_time) * 1000
             
             # 针对429错误（限流）增加更长延迟
@@ -650,16 +714,28 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                 retry_delay = 8 + attempt * 4  # 8s, 12s, 16s递增延迟
                 retry_reasons.append(f"{reason}@{retry_time:.0f}ms")
                 print(f"Logo生成重试 attempt={attempt+1}/{max_retries} reason={reason} delay={retry_delay}s time={retry_time:.1f}ms")
+                
                 if attempt < max_retries - 1:
+                    # 记录重试调用
+                    add_ai_call_record('DashScope', 'wanx2.0-t2i-turbo', current_api_key, api_start, api_end, 'retry', reason, attempt+1)
                     time.sleep(retry_delay)
                     continue
+                else:
+                    # 记录最终失败调用
+                    add_ai_call_record('DashScope', 'wanx2.0-t2i-turbo', current_api_key, api_start, api_end, 'failed', reason, attempt+1)
             else:
                 reason = "异常错误"
                 retry_reasons.append(f"{reason}@{retry_time:.0f}ms")
                 print(f"Logo生成重试 attempt={attempt+1}/{max_retries} reason={reason} error={error_str} time={retry_time:.1f}ms")
+                
                 if attempt < max_retries - 1:
+                    # 记录重试调用
+                    add_ai_call_record('DashScope', 'wanx2.0-t2i-turbo', current_api_key, api_start, api_end, 'retry', reason, attempt+1)
                     time.sleep(5)  # 增加等待时间，适应Railway环境
                     continue
+                else:
+                    # 记录最终失败调用
+                    add_ai_call_record('DashScope', 'wanx2.0-t2i-turbo', current_api_key, api_start, api_end, 'failed', reason, attempt+1)
             
             if attempt == max_retries - 1:
                 print(f"Logo生成失败 重试汇总={retry_reasons}")
