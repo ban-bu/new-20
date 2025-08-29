@@ -37,6 +37,42 @@ GPT4O_MINI_BASE_URL = "https://api.deepbricks.ai/v1/"
 # 从svg_utils导入SVG转换函数
 from svg_utils import convert_svg_to_png
 
+# 文生图API全局限流配置 - 严格遵守2次/秒限制
+_all_image_gen_call_times = []  # 所有文生图API调用时间记录
+_all_image_gen_rate_lock = threading.Lock()  # 全局文生图限流锁
+_all_image_gen_wait_times = []  # 等待时间统计
+DALLE_MAX_CALLS_PER_SECOND = 2  # 严格限制：2次/秒
+DALLE_TIME_WINDOW = 1.0  # 1秒时间窗口
+
+def wait_for_image_generation_rate_limit(api_type="DALL-E"):
+    """全局文生图API限流控制 - 严格遵守2次/秒限制"""
+    with _all_image_gen_rate_lock:
+        current_time = time.time()
+        
+        # 清理超过时间窗口的调用记录
+        _all_image_gen_call_times[:] = [t for t in _all_image_gen_call_times if current_time - t < DALLE_TIME_WINDOW]
+        
+        wait_time = 0
+        # 如果当前时间窗口内的调用数已达上限
+        if len(_all_image_gen_call_times) >= DALLE_MAX_CALLS_PER_SECOND:
+            # 计算需要等待的时间
+            oldest_call = min(_all_image_gen_call_times)
+            wait_time = DALLE_TIME_WINDOW - (current_time - oldest_call)
+            
+            if wait_time > 0:
+                log(f"文生图API全局限流等待 api_type={api_type} wait_time={wait_time:.3f}s current_calls={len(_all_image_gen_call_times)}")
+                _all_image_gen_wait_times.append(wait_time)  # 记录等待时间
+                time.sleep(wait_time)
+                
+                # 重新获取当前时间并清理记录
+                current_time = time.time()
+                _all_image_gen_call_times[:] = [t for t in _all_image_gen_call_times if current_time - t < DALLE_TIME_WINDOW]
+        
+        # 记录当前调用时间
+        _all_image_gen_call_times.append(current_time)
+        log(f"文生图API调用许可 api_type={api_type} current_calls_in_window={len(_all_image_gen_call_times)}")
+        return current_time, wait_time
+
 # 统一日志工具：带毫秒时间戳与线程名
 def _mask_key(key: str) -> str:
     try:
@@ -140,9 +176,13 @@ def get_ai_design_suggestions(user_preferences=None):
         return {"error": f"Error getting AI design suggestions: {str(e)}"}
 
 def generate_vector_image(prompt):
-    """Generate an image based on the prompt"""
+    """Generate an image based on the prompt - 严格遵守2次/秒限流"""
     log(f"images.generate client init key={_mask_key(API_KEY)} base_url={BASE_URL}")
     client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
+    
+    # 文生图API全局限流控制 - 确保2次/秒限制
+    wait_for_image_generation_rate_limit("DALL-E")
+    
     try:
         log("images.generate SUBMIT")
         resp = client.images.generate(

@@ -105,40 +105,60 @@ _api_lock = threading.Lock()
 _ai_call_records = []
 _call_records_lock = threading.Lock()
 
-# DashScope调用限流控制 - 2次/秒限制
+# DashScope调用限流控制 - 严格遵守2次/秒全局限制
 _dashscope_call_times = []
 _dashscope_rate_lock = threading.Lock()
 _dashscope_wait_times = []  # 记录等待时间统计
-DASHSCOPE_MAX_CALLS_PER_SECOND = 2
+
+# 文生图API全局限流策略 - 严格遵守2次/秒限制
+DASHSCOPE_MAX_CALLS_PER_SECOND = 2  # 全局限制：2次/秒
 DASHSCOPE_TIME_WINDOW = 1.0  # 1秒时间窗口
 
-def wait_for_dashscope_rate_limit():
-    """DashScope调用限流控制 - 确保每秒不超过2次调用"""
-    with _dashscope_rate_lock:
+# 全局文生图API限流状态
+_all_image_gen_call_times = []  # 所有文生图API调用时间记录
+_all_image_gen_rate_lock = threading.Lock()  # 全局文生图限流锁
+_all_image_gen_wait_times = []  # 等待时间统计
+
+# 保持分组数据结构（仅用于统计和监控）
+DASHSCOPE_GROUPS = 4  
+DASHSCOPE_KEYS_PER_GROUP = len(DASHSCOPE_API_KEYS) // DASHSCOPE_GROUPS
+_dashscope_group_call_times = [[] for _ in range(DASHSCOPE_GROUPS)]
+_dashscope_group_locks = [threading.Lock() for _ in range(DASHSCOPE_GROUPS)]
+_dashscope_group_wait_times = [[] for _ in range(DASHSCOPE_GROUPS)]
+
+def wait_for_image_generation_rate_limit(api_type="DashScope"):
+    """全局文生图API限流控制 - 严格遵守2次/秒限制"""
+    with _all_image_gen_rate_lock:
         current_time = time.time()
         
         # 清理超过时间窗口的调用记录
-        _dashscope_call_times[:] = [t for t in _dashscope_call_times if current_time - t < DASHSCOPE_TIME_WINDOW]
+        _all_image_gen_call_times[:] = [t for t in _all_image_gen_call_times if current_time - t < DASHSCOPE_TIME_WINDOW]
         
+        wait_time = 0
         # 如果当前时间窗口内的调用数已达上限
-        if len(_dashscope_call_times) >= DASHSCOPE_MAX_CALLS_PER_SECOND:
+        if len(_all_image_gen_call_times) >= DASHSCOPE_MAX_CALLS_PER_SECOND:
             # 计算需要等待的时间
-            oldest_call = min(_dashscope_call_times)
+            oldest_call = min(_all_image_gen_call_times)
             wait_time = DASHSCOPE_TIME_WINDOW - (current_time - oldest_call)
             
             if wait_time > 0:
-                print(f"DashScope限流等待 wait_time={wait_time:.3f}s current_calls={len(_dashscope_call_times)}")
-                _dashscope_wait_times.append(wait_time)  # 记录等待时间
+                print(f"文生图API全局限流等待 api_type={api_type} wait_time={wait_time:.3f}s current_calls={len(_all_image_gen_call_times)}")
+                _all_image_gen_wait_times.append(wait_time)  # 记录等待时间
                 time.sleep(wait_time)
                 
                 # 重新获取当前时间并清理记录
                 current_time = time.time()
-                _dashscope_call_times[:] = [t for t in _dashscope_call_times if current_time - t < DASHSCOPE_TIME_WINDOW]
+                _all_image_gen_call_times[:] = [t for t in _all_image_gen_call_times if current_time - t < DASHSCOPE_TIME_WINDOW]
         
         # 记录当前调用时间
-        _dashscope_call_times.append(current_time)
-        print(f"DashScope调用许可 current_calls_in_window={len(_dashscope_call_times)}")
-        return current_time
+        _all_image_gen_call_times.append(current_time)
+        print(f"文生图API调用许可 api_type={api_type} current_calls_in_window={len(_all_image_gen_call_times)}")
+        return current_time, wait_time
+
+def wait_for_dashscope_rate_limit():
+    """DashScope调用限流控制 - 兼容旧版接口，实际使用全局限流"""
+    call_time, wait_time = wait_for_image_generation_rate_limit("DashScope")
+    return call_time
 
 def add_ai_call_record(api_type, model, api_key, start_time, end_time, status, reason=None, attempt=1):
     """添加AI调用记录"""
@@ -224,14 +244,15 @@ def print_ai_call_summary():
             print(f"  ✅ 成功: {success_count}次 | ❌ 失败: {failed_count}次 | 🔄 重试: {retry_count}次")
             print(f"  ⏱️  总耗时: {total_duration:.1f}ms | 平均: {avg_duration:.1f}ms")
             
-            # 限流统计
-            if _dashscope_wait_times:
-                total_wait_time = sum(_dashscope_wait_times)
-                avg_wait_time = total_wait_time / len(_dashscope_wait_times)
-                max_wait_time = max(_dashscope_wait_times)
-                print(f"  🚦 限流统计: 等待{len(_dashscope_wait_times)}次 | 总等待: {total_wait_time:.3f}s | 平均: {avg_wait_time:.3f}s | 最长: {max_wait_time:.3f}s")
+            # 文生图API全局限流统计
+            if _all_image_gen_wait_times:
+                total_wait_time = sum(_all_image_gen_wait_times)
+                avg_wait_time = total_wait_time / len(_all_image_gen_wait_times)
+                max_wait_time = max(_all_image_gen_wait_times)
+                print(f"  🚦 全局限流统计: 等待{len(_all_image_gen_wait_times)}次 | 总等待: {total_wait_time:.3f}s | 平均: {avg_wait_time:.3f}s | 最长: {max_wait_time:.3f}s")
+                print(f"  🎯 限流效果: 严格遵守2次/秒限制，确保API合规调用")
             else:
-                print(f"  🚦 限流统计: 无等待 (调用频率在限制范围内)")
+                print(f"  🚦 全局限流统计: 无等待 (调用频率在2次/秒限制范围内)")
             
             # 失败原因统计
             failure_reasons = {}
@@ -270,6 +291,9 @@ def clear_ai_call_records():
     # 同时清空限流统计
     with _dashscope_rate_lock:
         _dashscope_wait_times.clear()
+    # 清空全局文生图限流统计
+    with _all_image_gen_rate_lock:
+        _all_image_gen_wait_times.clear()
 
 def get_next_api_key():
     """获取下一个DALL-E API密钥（轮询方式）"""
@@ -291,7 +315,8 @@ def get_next_dashscope_api_key():
     """获取下一个DashScope API密钥（轮询方式）"""
     global _dashscope_api_key_counter
     with _api_lock:
-        key = DASHSCOPE_API_KEYS[_dashscope_api_key_counter % len(DASHSCOPE_API_KEYS)]
+        key_index = _dashscope_api_key_counter % len(DASHSCOPE_API_KEYS)
+        key = DASHSCOPE_API_KEYS[key_index]
         _dashscope_api_key_counter += 1
         return key
 
@@ -360,6 +385,98 @@ def make_background_transparent(image, threshold=100):
     transparent_image.putdata(new_data)
     
     return transparent_image
+
+def calculate_color_brightness(rgb_color):
+    """计算RGB颜色的感知亮度 (0-255)
+    使用标准感知亮度公式：0.299*R + 0.587*G + 0.114*B
+    """
+    if isinstance(rgb_color, str):
+        # 处理十六进制颜色
+        rgb_color = rgb_color.lstrip('#')
+        r = int(rgb_color[0:2], 16)
+        g = int(rgb_color[2:4], 16)
+        b = int(rgb_color[4:6], 16)
+    elif isinstance(rgb_color, (tuple, list)):
+        r, g, b = rgb_color[:3]
+    else:
+        return 128  # 默认中等亮度
+    
+    # 使用感知亮度公式
+    brightness = 0.299 * r + 0.587 * g + 0.114 * b
+    return brightness
+
+def calculate_contrast_ratio(color1, color2):
+    """计算两个颜色之间的对比度比率 (WCAG标准)
+    返回值范围：1.0 (无对比度) 到 21.0 (最大对比度)
+    """
+    # 计算相对亮度 (0.0 - 1.0)
+    def relative_luminance(rgb):
+        if isinstance(rgb, str):
+            rgb = rgb.lstrip('#')
+            r = int(rgb[0:2], 16) / 255.0
+            g = int(rgb[2:4], 16) / 255.0
+            b = int(rgb[4:6], 16) / 255.0
+        else:
+            r, g, b = [c/255.0 for c in rgb[:3]]
+        
+        # 应用gamma校正
+        def gamma_correct(c):
+            if c <= 0.03928:
+                return c / 12.92
+            else:
+                return pow((c + 0.055) / 1.055, 2.4)
+        
+        return 0.2126 * gamma_correct(r) + 0.7152 * gamma_correct(g) + 0.0722 * gamma_correct(b)
+    
+    lum1 = relative_luminance(color1)
+    lum2 = relative_luminance(color2)
+    
+    # 确保较亮的颜色作为分子
+    lighter = max(lum1, lum2)
+    darker = min(lum1, lum2)
+    
+    # 对比度公式
+    contrast = (lighter + 0.05) / (darker + 0.05)
+    return contrast
+
+def is_dark_color(color):
+    """判断颜色是否为深色 (亮度 < 128)"""
+    brightness = calculate_color_brightness(color)
+    return brightness < 128
+
+def get_contrasting_color_description(shirt_color, min_contrast_ratio=4.5):
+    """根据T恤颜色生成对比色描述，用于logo生成提示词
+    
+    Args:
+        shirt_color: T恤颜色 (hex或rgb)
+        min_contrast_ratio: 最小对比度要求 (默认4.5符合WCAG AA标准)
+    
+    Returns:
+        dict: 包含颜色描述和具体颜色建议的字典
+    """
+    shirt_brightness = calculate_color_brightness(shirt_color)
+    is_dark_shirt = shirt_brightness < 128
+    
+    print(f"T恤颜色分析 color={shirt_color} brightness={shirt_brightness:.1f} is_dark={is_dark_shirt}")
+    
+    if is_dark_shirt:
+        # 深色T恤 - 使用亮色logo
+        return {
+            "color_description": "bright, light-colored, high-contrast white or light colors",
+            "specific_colors": "white, light gray, bright yellow, light blue, or cream",
+            "avoid_colors": "dark colors, black, navy, dark gray",
+            "contrast_type": "light_on_dark",
+            "additional_effects": "add subtle white outline or glow effect for extra visibility"
+        }
+    else:
+        # 浅色T恤 - 使用深色logo
+        return {
+            "color_description": "dark, bold-colored, high-contrast black or dark colors", 
+            "specific_colors": "black, dark gray, navy blue, dark green, or deep purple",
+            "avoid_colors": "light colors, white, light gray, pale colors",
+            "contrast_type": "dark_on_light",
+            "additional_effects": "use solid, bold colors with clean edges"
+        }
 
 # 自定义SVG转PNG函数，不依赖外部库
 def convert_svg_to_png(svg_content):
@@ -568,28 +685,69 @@ def is_valid_logo(image, min_colors=2, min_non_transparent_pixels=300, max_domin
         print(f"Logo验证过程中出错: {e}")
         return False
 
-def generate_vector_image(prompt, background_color=None, max_retries=3):
+def generate_vector_image(prompt, background_color=None, max_retries=3, shirt_color=None):
     """Generate a vector-style logo with transparent background using DashScope API with validation and retry
     
     使用轮询机制从20个DashScope API密钥中选择，支持高并发并行生成提高效率
+    
+    Args:
+        prompt: 基础logo描述
+        background_color: 背景颜色（已弃用，保留兼容性）
+        max_retries: 最大重试次数
+        shirt_color: T恤颜色，用于智能对比度调整
     """
     
-    # 构建矢量图logo专用的提示词
+    # 获取对比色描述（如果提供了T恤颜色）
+    contrast_info = None
+    color_requirements = ""
+    
+    if shirt_color:
+        contrast_info = get_contrasting_color_description(shirt_color)
+        print(f"Logo对比色适配 shirt_color={shirt_color} contrast_type={contrast_info['contrast_type']}")
+        
+        # 根据T恤颜色调整颜色要求
+        if contrast_info['contrast_type'] == 'light_on_dark':
+            # 深色T恤 - 使用亮色logo
+            color_requirements = f"""
+    颜色要求（深色T恤适配）：
+    - 主色调必须使用亮色：{contrast_info['specific_colors']}
+    - 严格避免：{contrast_info['avoid_colors']}
+    - 添加白色或浅色描边增强对比度
+    - 使用高饱和度亮色确保可见性
+    - 可适当添加发光效果或白边轮廓"""
+        else:
+            # 浅色T恤 - 使用深色logo
+            color_requirements = f"""
+    颜色要求（浅色T恤适配）：
+    - 主色调必须使用深色：{contrast_info['specific_colors']}
+    - 严格避免：{contrast_info['avoid_colors']}
+    - 使用深色粗描边增强轮廓
+    - 颜色饱和度高，对比强烈
+    - 实心色块设计，避免浅色填充"""
+    else:
+        # 默认通用颜色要求
+        color_requirements = """
+    通用颜色要求：
+    - 极高对比度，颜色饱和鲜明
+    - 深色轮廓+亮色填充，确保在任何背景都清晰
+    - 颜色至少三种，包含深色边框"""
+    
+    # 构建智能颜色适配的矢量图logo专用提示词
     vector_style_prompt = f"""创建一个矢量风格的logo设计: {prompt}
-    要求:
+    
+    基础要求:
     1. 简洁的矢量图风格，线条清晰、闭合、边缘净
     2. 必须是透明背景(透明PNG)，无背板、无渐变底、无阴影
     3. 专业的logo设计，适合印刷到T恤，避免过多细碎噪点
-    4. 极高对比度，颜色饱和鲜明，深色轮廓+亮色填充，避免浅色和半透明
-    5. 几何形状简洁，不要过于复杂，中心构图
-    6. 不要包含文字或字母
-    7. 不要显示T恤或服装模型
-    8. 纯粹的图形标志设计
-    9. 矢量插画风格，扁平化设计，实心色块+黑色描边
-    10. 背景必须完全透明，不要留边缘白边/灰边
-    11. 输出PNG透明背景图标，尺寸768x768
-    12. 图标应独立，无任何背景元素，不要样机/预览
-    13. 颜色至少三种，包含深色边框，确保在任何背景上都清晰可见"""
+    4. 几何形状简洁，不要过于复杂，中心构图
+    5. 不要包含文字或字母
+    6. 不要显示T恤或服装模型
+    7. 纯粹的图形标志设计
+    8. 矢量插画风格，扁平化设计，实心色块
+    9. 背景必须完全透明，不要留边缘白边/灰边
+    10. 输出PNG透明背景图标，尺寸768x768
+    11. 图标应独立，无任何背景元素，不要样机/预览
+    {color_requirements}"""
     
     # 如果DashScope不可用，直接返回None
     if not DASHSCOPE_AVAILABLE:
@@ -1079,7 +1237,7 @@ def generate_complete_design(design_prompt, variation_id=None):
             
             # 生成透明背景的矢量logo，带有重试机制
             print(f"开始生成logo: {logo_description}")
-            logo_image = generate_vector_image(logo_prompt, max_retries=3)
+            logo_image = generate_vector_image(logo_prompt, max_retries=3, shirt_color=color_hex)
             
             if logo_image is None:
                 print(f"Logo生成失败，将继续生成不带logo的设计")

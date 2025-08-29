@@ -22,6 +22,43 @@ import json
 # 导入并行处理库
 import concurrent.futures
 import time
+import threading
+
+# 文生图API全局限流配置 - 严格遵守2次/秒限制
+_all_image_gen_call_times = []  # 所有文生图API调用时间记录
+_all_image_gen_rate_lock = threading.Lock()  # 全局文生图限流锁
+_all_image_gen_wait_times = []  # 等待时间统计
+DALLE_MAX_CALLS_PER_SECOND = 2  # 严格限制：2次/秒
+DALLE_TIME_WINDOW = 1.0  # 1秒时间窗口
+
+def wait_for_image_generation_rate_limit(api_type="DALL-E"):
+    """全局文生图API限流控制 - 严格遵守2次/秒限制"""
+    with _all_image_gen_rate_lock:
+        current_time = time.time()
+        
+        # 清理超过时间窗口的调用记录
+        _all_image_gen_call_times[:] = [t for t in _all_image_gen_call_times if current_time - t < DALLE_TIME_WINDOW]
+        
+        wait_time = 0
+        # 如果当前时间窗口内的调用数已达上限
+        if len(_all_image_gen_call_times) >= DALLE_MAX_CALLS_PER_SECOND:
+            # 计算需要等待的时间
+            oldest_call = min(_all_image_gen_call_times)
+            wait_time = DALLE_TIME_WINDOW - (current_time - oldest_call)
+            
+            if wait_time > 0:
+                st.info(f"文生图API限流等待 api_type={api_type} wait_time={wait_time:.3f}s")
+                _all_image_gen_wait_times.append(wait_time)  # 记录等待时间
+                time.sleep(wait_time)
+                
+                # 重新获取当前时间并清理记录
+                current_time = time.time()
+                _all_image_gen_call_times[:] = [t for t in _all_image_gen_call_times if current_time - t < DALLE_TIME_WINDOW]
+        
+        # 记录当前调用时间
+        _all_image_gen_call_times.append(current_time)
+        print(f"文生图API调用许可 api_type={api_type} current_calls_in_window={len(_all_image_gen_call_times)}")
+        return current_time, wait_time
 
 # API配置信息 - 实际使用时应从主文件传入或使用环境变量
 API_KEY = "sk-51a3e204ed83484db3b44e12d81c143e"
@@ -127,7 +164,10 @@ def get_ai_design_suggestions(user_preferences=None, age_group=None, gender=None
         return f"Error getting AI suggestions: {str(e)}"
 
 def generate_vector_image(prompt):
-    """Generate an image based on the prompt"""
+    """Generate an image based on the prompt - 严格遵守2次/秒限流"""
+    # 文生图API全局限流控制 - 确保2次/秒限制
+    wait_for_image_generation_rate_limit("DALL-E")
+    
     client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
     try:
         resp = client.images.generate(
