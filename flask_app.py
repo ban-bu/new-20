@@ -267,7 +267,7 @@ def clear_ai_call_records():
         _dashscope_wait_times.clear()
 
 # 设置默认生成的设计数量
-DEFAULT_DESIGN_COUNT = 15
+DEFAULT_DESIGN_COUNT = 20
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # 在生产环境中使用更安全的密钥
