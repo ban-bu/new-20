@@ -59,7 +59,6 @@ GPT4O_MINI_API_KEYS = [
     "sk-TB2wg0E6NAUfs3cxuuO7MmB1xHtrd2O4f5380vc3ibSPPv8G",
     "sk-JnAylOqL4tRKkdoNqNuUyzOGsqt8d2O4f5380vc3IBsPPv9G",
     "sk-b21I1MNl27hobxJ4B0ZFzCokwVF2d2O4f5B80VC1e716unVG",
-    "sk-d5XpJF2NMWWdq7ZEJQLyP0AojgE1D2o4F5j80VC3ibSPPVC0",
     "sk-fMFkcOX0Pee9ecGWa73fdHU6tSjPD2o4F5J80Vc1e716uO10",
     "sk-BxN7ncNBMmyoy9FiRhgNkRrAegELD2O4F5r80vC3ibSpPvDG",
     "sk-Eun0GvNO0xUWm7EfprCGPukeTSHJD2O4F6380VC1E716Uo2g",
@@ -67,7 +66,8 @@ GPT4O_MINI_API_KEYS = [
     "sk-QMCiQzJW0iMr3z3vr7FPxTWvfuQwd2o4hJr80vC1e716v060",
     "sk-b5eYKA5L5FPtoHFY3IhoJcE9cxwid2o4HgJ80vC3iBsPq7d0",
     "sk-OwECm6sctSh4lc8ZjMazIgKbW369D2O4hgb80vC3ibSPQ7bg",
-    "sk-2G1gAKU00wK7Rt9cxJdErScYkNtSd2o4Hgb80vc3IBspQ7Ag"
+    "sk-2G1gAKU00wK7Rt9cxJdErScYkNtSd2o4Hgb80vc3IBspQ7Ag",
+    "sk-j3KSILShr68o3W9HOJPKBBzzmtjWd2oipAj4pp5CU06a44E0"
 ]
 GPT4O_MINI_BASE_URL = "https://api.deepbricks.ai/v1/"
 
@@ -217,13 +217,12 @@ def convert_svg_to_png(svg_content):
 # 设置默认生成的设计数量，取代UI上的选择按钮
 DEFAULT_DESIGN_COUNT = 20  # 可以设置为1, 3, 5, 15, 20，分别对应原来的low, medium, high, ultra-high
 
-def get_ai_design_suggestions(user_preferences=None):
+def get_ai_design_suggestions(user_preferences=None, max_retries=3):
     """Get design suggestions from GPT-4o-mini with more personalized features
     
     使用轮询机制从20个GPT-4o API密钥中选择，支持最高并发设计建议生成
+    当遇到401错误时自动重试下一个密钥
     """
-    client = OpenAI(api_key=get_next_gpt4o_api_key(), base_url=GPT4O_MINI_BASE_URL)
-    
     # Default prompt if no user preferences provided
     if not user_preferences:
         user_preferences = "casual fashion t-shirt design"
@@ -251,38 +250,81 @@ def get_ai_design_suggestions(user_preferences=None):
     }}
     """
     
-    try:
-        # 调用GPT-4o-mini
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a professional design consultant. Provide design suggestions in JSON format exactly as requested."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        
-        # 返回建议内容
-        if response.choices and len(response.choices) > 0:
-            suggestion_text = response.choices[0].message.content
+    # 重试统计
+    retry_reasons = []
+    start_time = time.time()
+    
+    # 重试机制：尝试多个API密钥
+    for attempt in range(max_retries):
+        try:
+            api_key = get_next_gpt4o_api_key()
+            print(f"AI建议请求 attempt={attempt+1} key={api_key[:6]}...{api_key[-4:]}")
+            client = OpenAI(api_key=api_key, base_url=GPT4O_MINI_BASE_URL)
             
-            # 尝试解析JSON
-            try:
-                # 查找JSON格式的内容
-                json_match = re.search(r'```json\s*(.*?)\s*```', suggestion_text, re.DOTALL)
-                if json_match:
-                    suggestion_json = json.loads(json_match.group(1))
-                else:
-                    # 尝试直接解析整个内容
-                    suggestion_json = json.loads(suggestion_text)
+            # 调用GPT-4o-mini
+            api_start = time.time()
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a professional design consultant. Provide design suggestions in JSON format exactly as requested."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            api_duration = (time.time() - api_start) * 1000
+            print(f"AI建议响应 duration={api_duration:.1f}ms")
+            
+            # 返回建议内容
+            if response.choices and len(response.choices) > 0:
+                suggestion_text = response.choices[0].message.content
+                print(f"AI建议解析 length={len(suggestion_text) if suggestion_text else 0}字符")
                 
-                return suggestion_json
-            except Exception as e:
-                print(f"Error parsing JSON: {e}")
-                return {"error": f"Failed to parse design suggestions: {str(e)}"}
-        else:
-            return {"error": "Failed to get AI design suggestions. Please try again later."}
-    except Exception as e:
-        return {"error": f"Error getting AI design suggestions: {str(e)}"}
+                # 尝试解析JSON
+                try:
+                    # 查找JSON格式的内容
+                    json_match = re.search(r'```json\s*(.*?)\s*```', suggestion_text, re.DOTALL)
+                    if json_match:
+                        suggestion_json = json.loads(json_match.group(1))
+                    else:
+                        # 尝试直接解析整个内容
+                        suggestion_json = json.loads(suggestion_text)
+                    
+                    total_duration = (time.time() - start_time) * 1000
+                    if retry_reasons:
+                        print(f"AI建议成功 总耗时={total_duration:.1f}ms 重试={len(retry_reasons)}次 原因={retry_reasons}")
+                    else:
+                        print(f"AI建议成功 耗时={total_duration:.1f}ms 无重试")
+                    return suggestion_json
+                except Exception as e:
+                    print(f"JSON解析失败: {e}")
+                    return {"error": f"Failed to parse design suggestions: {str(e)}"}
+            else:
+                return {"error": "Failed to get AI design suggestions. Please try again later."}
+                
+        except Exception as e:
+            error_str = str(e)
+            retry_time = (time.time() - start_time) * 1000
+            
+            # 检查是否是401错误（无效API密钥）
+            if "401" in error_str or "invalid api key" in error_str.lower() or "invalid_api_key" in error_str:
+                reason = "401无效密钥"
+                retry_reasons.append(f"{reason}@{retry_time:.0f}ms")
+                print(f"AI建议重试 attempt={attempt+1}/{max_retries} reason={reason} time={retry_time:.1f}ms")
+                if attempt < max_retries - 1:
+                    continue  # 尝试下一个密钥
+                else:
+                    print(f"AI建议失败 重试汇总={retry_reasons}")
+                    return {"error": f"所有GPT-4o API密钥都无效，请检查密钥配置: {error_str}"}
+            else:
+                # 其他错误，直接返回
+                reason = "其他错误"
+                retry_reasons.append(f"{reason}@{retry_time:.0f}ms")
+                print(f"AI建议失败 重试汇总={retry_reasons} 最终错误={error_str}")
+                return {"error": f"Error getting AI design suggestions: {error_str}"}
+    
+    # 如果所有重试都失败
+    total_duration = (time.time() - start_time) * 1000
+    print(f"AI建议彻底失败 总耗时={total_duration:.1f}ms 重试汇总={retry_reasons}")
+    return {"error": "Failed to get AI design suggestions after multiple retries"}
 
 def is_valid_logo(image, min_colors=2, min_non_transparent_pixels=300, max_dominant_ratio=0.985):
     """检查生成的logo是否有效（不是纯色或空白图像）"""
@@ -372,11 +414,13 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
         st.error("DashScope API不可用，无法生成logo。请确保已正确安装dashscope库。")
         return None
     
+    # 重试统计
+    retry_reasons = []
+    start_time = time.time()
+    
     # 尝试生成logo，最多重试max_retries次
     for attempt in range(max_retries):
         try:
-            print(f'----第{attempt + 1}次尝试使用DashScope生成矢量logo，提示词: {vector_style_prompt}----')
-            
             # 为重试添加随机性，避免生成相同的图像
             if attempt > 0:
                 retry_prompt = f"{vector_style_prompt}\n\n变化要求: 请生成与之前不同的设计风格，尝试{['更加几何化', '更加有机化', '更加现代化'][attempt % 3]}的设计"
@@ -385,8 +429,9 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
             
             # 获取下一个DashScope API密钥用于当前请求
             current_api_key = get_next_dashscope_api_key()
-            print(f'使用DashScope API密钥: {current_api_key[:20]}...{current_api_key[-10:]}')
+            print(f'Logo生成请求 attempt={attempt+1} key={current_api_key[:6]}...{current_api_key[-4:]}')
             
+            api_start = time.time()
             rsp = ImageSynthesis.call(
                 api_key=current_api_key,
                 model="wanx2.0-t2i-turbo",
@@ -394,73 +439,104 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                 n=1,
                 size='768*768'
             )
-            print('DashScope响应: %s' % rsp)
+            api_duration = (time.time() - api_start) * 1000
+            print(f'Logo生成响应 duration={api_duration:.1f}ms status={rsp.status_code}')
             
             if rsp.status_code == HTTPStatus.OK:
                 # 下载生成的图像
                 for result in rsp.output.results:
+                    download_start = time.time()
                     image_resp = requests.get(result.url)
                     if image_resp.status_code == 200:
                         # 加载图像并转换为RGBA模式
                         img = Image.open(BytesIO(image_resp.content)).convert("RGBA")
-                        print(f"DashScope生成的logo尺寸: {img.size}")
+                        download_duration = (time.time() - download_start) * 1000
+                        print(f"Logo下载完成 size={img.size} duration={download_duration:.1f}ms")
                         
                         # 后处理：将白色背景转换为透明（使用适中的阈值）
-                        # 避免过度透明化导致logo内容丢失
+                        process_start = time.time()
                         img_processed = make_background_transparent(img, threshold=80)
-                        print(f"背景透明化处理完成")
+                        process_duration = (time.time() - process_start) * 1000
+                        print(f"背景透明化完成 duration={process_duration:.1f}ms")
                         
                         # 验证生成的logo是否有效
                         if is_valid_logo(img_processed):
-                            print(f"Logo生成成功并通过验证（第{attempt + 1}次尝试）")
+                            total_duration = (time.time() - start_time) * 1000
+                            if retry_reasons:
+                                print(f"Logo生成成功 总耗时={total_duration:.1f}ms 重试={len(retry_reasons)}次 原因={retry_reasons}")
+                            else:
+                                print(f"Logo生成成功 耗时={total_duration:.1f}ms 无重试")
                             return img_processed
                         else:
-                            print(f"第{attempt + 1}次生成的logo未通过验证，准备重试...")
+                            reason = "验证失败"
+                            retry_time = (time.time() - start_time) * 1000
+                            retry_reasons.append(f"{reason}@{retry_time:.0f}ms")
+                            print(f"Logo生成重试 attempt={attempt+1}/{max_retries} reason={reason} time={retry_time:.1f}ms")
                             if attempt < max_retries - 1:
                                 time.sleep(3)  # 增加等待时间，适应Railway环境
                                 continue
                             else:
-                                print("所有重试都失败，返回最后一次生成的logo")
+                                print(f"Logo验证失败但返回 重试汇总={retry_reasons}")
                                 return img_processed  # 即使验证失败，也返回最后的结果
                     else:
-                        print(f"下载图像失败, 状态码: {image_resp.status_code}")
+                        reason = f"下载失败{image_resp.status_code}"
+                        retry_time = (time.time() - start_time) * 1000
+                        retry_reasons.append(f"{reason}@{retry_time:.0f}ms")
+                        print(f"Logo生成重试 attempt={attempt+1}/{max_retries} reason={reason} time={retry_time:.1f}ms")
                         if attempt < max_retries - 1:
                             continue
             else:
-                print('DashScope调用失败, status_code: %s, code: %s, message: %s' %
-                      (rsp.status_code, rsp.code, rsp.message))
+                reason = f"API失败{rsp.status_code}"
+                if hasattr(rsp, 'message'):
+                    reason += f"({rsp.message})"
+                retry_time = (time.time() - start_time) * 1000
+                retry_reasons.append(f"{reason}@{retry_time:.0f}ms")
+                print(f"Logo生成重试 attempt={attempt+1}/{max_retries} reason={reason} time={retry_time:.1f}ms")
                 if attempt < max_retries - 1:
-                    print(f"第{attempt + 1}次调用失败，准备重试...")
                     time.sleep(5)  # 增加等待时间，适应Railway环境
                     continue
                 else:
+                    print(f"Logo生成失败 重试汇总={retry_reasons}")
                     st.error(f"DashScope API调用失败: {rsp.message}")
                 
         except Exception as e:
-            print(f"第{attempt + 1}次DashScope调用出错: {e}")
+            error_str = str(e)
+            retry_time = (time.time() - start_time) * 1000
+            
             # 针对429错误（限流）增加更长延迟
-            if "429" in str(e) or "Throttling.RateQuota" in str(e):
+            if "429" in error_str or "Throttling.RateQuota" in error_str:
+                reason = "429限流"
+                retry_delay = 8 + attempt * 4  # 8s, 12s, 16s递增延迟
+                retry_reasons.append(f"{reason}@{retry_time:.0f}ms")
+                print(f"Logo生成重试 attempt={attempt+1}/{max_retries} reason={reason} delay={retry_delay}s time={retry_time:.1f}ms")
                 if attempt < max_retries - 1:
-                    retry_delay = 8 + attempt * 4  # 8s, 12s, 16s递增延迟
-                    print(f"检测到限流错误，等待{retry_delay}秒后重试...")
                     time.sleep(retry_delay)
                     continue
-            elif attempt < max_retries - 1:
-                print("准备重试...")
-                time.sleep(5)  # 增加等待时间，适应Railway环境
-                continue
             else:
+                reason = "异常错误"
+                retry_reasons.append(f"{reason}@{retry_time:.0f}ms")
+                print(f"Logo生成重试 attempt={attempt+1}/{max_retries} reason={reason} error={error_str} time={retry_time:.1f}ms")
+                if attempt < max_retries - 1:
+                    time.sleep(5)  # 增加等待时间，适应Railway环境
+                    continue
+            
+            if attempt == max_retries - 1:
+                print(f"Logo生成失败 重试汇总={retry_reasons}")
                 st.error(f"DashScope API调用错误: {e}")
     
     # 所有重试都失败
-    print(f"经过{max_retries}次尝试，logo生成失败")
+    total_duration = (time.time() - start_time) * 1000
+    print(f"Logo生成彻底失败 总耗时={total_duration:.1f}ms 重试汇总={retry_reasons}")
     st.error("Logo生成失败，请检查网络连接或稍后重试。")
     return None
 
 def change_shirt_color(image, color_hex, apply_texture=False, fabric_type=None):
     """Change T-shirt color with optional fabric texture"""
+    start_time = time.time()
+    
     # 转换十六进制颜色为RGB
     color_rgb = tuple(int(color_hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+    print(f"T恤改色开始 color={color_hex} size={image.size}")
     
     # 创建副本避免修改原图
     colored_image = image.copy().convert("RGBA")
@@ -473,12 +549,16 @@ def change_shirt_color(image, color_hex, apply_texture=False, fabric_type=None):
     # 白色阈值 - 调整这个值可以控制哪些像素被视为白色/浅色并被改变
     threshold = 200
     
+    pixel_count = 0
+    changed_pixels = 0
     for item in data:
+        pixel_count += 1
         # 判断是否是白色/浅色区域 (RGB值都很高)
         if item[0] > threshold and item[1] > threshold and item[2] > threshold and item[3] > 0:
             # 保持原透明度，改变颜色
             new_color = (color_rgb[0], color_rgb[1], color_rgb[2], item[3])
             new_data.append(new_color)
+            changed_pixels += 1
         else:
             # 保持其他颜色不变
             new_data.append(item)
@@ -486,9 +566,17 @@ def change_shirt_color(image, color_hex, apply_texture=False, fabric_type=None):
     # 更新图像数据
     colored_image.putdata(new_data)
     
+    duration = (time.time() - start_time) * 1000
+    change_ratio = (changed_pixels / pixel_count) * 100 if pixel_count > 0 else 0
+    print(f"T恤改色完成 duration={duration:.1f}ms changed={changed_pixels}/{pixel_count}({change_ratio:.1f}%)")
+    
     # 如果需要应用纹理
     if apply_texture and fabric_type:
-        return apply_fabric_texture(colored_image, fabric_type)
+        texture_start = time.time()
+        result = apply_fabric_texture(colored_image, fabric_type)
+        texture_duration = (time.time() - texture_start) * 1000
+        print(f"纹理应用完成 fabric={fabric_type} duration={texture_duration:.1f}ms")
+        return result
     
     return colored_image
 
@@ -569,14 +657,18 @@ def apply_text_to_shirt(image, text, color_hex="#FFFFFF", font_size=80):
 
 def apply_logo_to_shirt(shirt_image, logo_image, position="center", size_percent=60, background_color=None):
     """Apply logo to T-shirt image with better blending to reduce shadows"""
+    start_time = time.time()
+    
     if logo_image is None:
-        print("Logo为空，跳过logo应用")
+        print("Logo应用跳过：Logo为空")
         return shirt_image
     
     # 验证logo是否有效
     if not is_valid_logo(logo_image):
-        print("Logo验证失败，跳过logo应用")
+        print("Logo应用跳过：Logo验证失败")
         return shirt_image
+    
+    print(f"Logo应用开始 shirt_size={shirt_image.size} logo_size={logo_image.size} position={position}")
     
     # 创建副本避免修改原图
     result_image = shirt_image.copy().convert("RGBA")
@@ -592,10 +684,13 @@ def apply_logo_to_shirt(shirt_image, logo_image, position="center", size_percent
     logo_with_bg = logo_image.copy().convert("RGBA")
     
     # 调整Logo大小
+    resize_start = time.time()
     logo_size_factor = size_percent / 100
     logo_width = int(chest_width * logo_size_factor * 0.7)
     logo_height = int(logo_width * logo_with_bg.height / logo_with_bg.width)
     logo_resized = logo_with_bg.resize((logo_width, logo_height), Image.LANCZOS)
+    resize_duration = (time.time() - resize_start) * 1000
+    print(f"Logo调整大小 from={logo_with_bg.size} to={logo_resized.size} duration={resize_duration:.1f}ms")
     
     # 根据位置确定坐标
     position = position.lower() if isinstance(position, str) else "center"
@@ -641,6 +736,7 @@ def apply_logo_to_shirt(shirt_image, logo_image, position="center", size_percent
                         logo_mask.putpixel((x, y), transparency)
     
     # 对于透明背景的logo，使用PIL的alpha合成功能
+    blend_start = time.time()
     if logo_resized.mode == 'RGBA':
         # 检查logo是否真的有透明像素
         has_transparency = False
@@ -649,15 +745,14 @@ def apply_logo_to_shirt(shirt_image, logo_image, position="center", size_percent
                 has_transparency = True
                 break
         
-        print(f"Logo模式: {logo_resized.mode}, 有透明像素: {has_transparency}")
+        print(f"Logo透明度检查 mode={logo_resized.mode} has_transparency={has_transparency}")
         
         if has_transparency:
             # 直接使用PIL的alpha合成，这样处理透明背景更准确
-            print(f"将透明背景logo应用到T恤位置: ({logo_x}, {logo_y})")
             result_image.paste(logo_resized, (logo_x, logo_y), logo_resized)
         else:
             # 如果没有透明像素，先处理背景透明化
-            print("Logo没有透明像素，进行背景透明化处理")
+            print("Logo背景透明化处理")
             transparent_logo = make_background_transparent(logo_resized, threshold=120)
             result_image.paste(transparent_logo, (logo_x, logo_y), transparent_logo)
     else:
@@ -688,6 +783,10 @@ def apply_logo_to_shirt(shirt_image, logo_image, position="center", size_percent
         
         # 将修改后的区域粘贴回T恤
         result_image.paste(shirt_region, (logo_x, logo_y))
+    
+    blend_duration = (time.time() - blend_start) * 1000
+    total_duration = (time.time() - start_time) * 1000
+    print(f"Logo应用完成 position=({logo_x},{logo_y}) blend={blend_duration:.1f}ms total={total_duration:.1f}ms")
     
     return result_image
 
