@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session
+from flask_cors import CORS
 from PIL import Image, ImageDraw
 import requests
 from io import BytesIO
@@ -270,6 +271,13 @@ DEFAULT_DESIGN_COUNT = 20
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # 在生产环境中使用更安全的密钥
+
+# 配置CORS以支持Railway部署和跨域请求
+CORS(app, 
+     origins=["*"],  # 在生产环境中应该限制为具体域名
+     methods=["GET", "POST", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization"],
+     supports_credentials=True)
 
 # 统一日志工具：带毫秒时间戳与线程名
 def _mask_key(key: str) -> str:
@@ -1215,8 +1223,25 @@ def image_to_base64(image):
 def index():
     return render_template('index.html')
 
-@app.route('/generate', methods=['POST'])
+@app.route('/health', methods=['GET'])
+def health_check():
+    """健康检查端点，用于Railway部署验证"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'message': 'AI T-shirt Design Generator is running'
+    })
+
+@app.route('/generate', methods=['POST', 'OPTIONS'])
 def generate_designs():
+    # 处理OPTIONS预检请求
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        return response
+        
     data = request.get_json()
     keywords = data.get('keywords', '')
     
@@ -1380,5 +1405,21 @@ def generate_designs():
         return jsonify({'error': error_msg}), 500
 
 if __name__ == '__main__':
+    # Railway环境配置
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    host = os.environ.get('HOST', '0.0.0.0')
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    print(f"🚀 Starting AI T-shirt Design Generator...")
+    print(f"   Host: {host}")
+    print(f"   Port: {port}")
+    print(f"   Debug: {debug_mode}")
+    print(f"   Environment: {'Railway' if os.environ.get('RAILWAY_ENVIRONMENT') else 'Local'}")
+    print(f"   DashScope Available: {DASHSCOPE_AVAILABLE}")
+    print(f"   CORS Enabled: True")
+    
+    try:
+        app.run(host=host, port=port, debug=debug_mode, threaded=True)
+    except Exception as e:
+        print(f"❌ Failed to start server: {e}")
+        raise
