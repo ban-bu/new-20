@@ -101,6 +101,127 @@ _gpt4o_api_key_counter = 0
 _dashscope_api_key_counter = 0
 _api_lock = threading.Lock()
 
+# 全局AI调用记录统计
+_ai_call_records = []
+_call_records_lock = threading.Lock()
+
+def add_ai_call_record(api_type, model, api_key, start_time, end_time, status, reason=None, attempt=1):
+    """添加AI调用记录"""
+    with _call_records_lock:
+        record = {
+            'api_type': api_type,  # 'GPT-4o-mini' 或 'DashScope'
+            'model': model,
+            'api_key': _mask_key(api_key),
+            'start_time': start_time,
+            'end_time': end_time,
+            'duration_ms': (end_time - start_time) * 1000,
+            'status': status,  # 'success', 'failed', 'retry'
+            'reason': reason,  # 失败或重试原因
+            'attempt': attempt
+        }
+        _ai_call_records.append(record)
+
+def _mask_key(key: str) -> str:
+    """掩码显示API密钥"""
+    try:
+        if not key:
+            return "None"
+        if len(key) <= 10:
+            return key[:2] + "***" + key[-2:]
+        else:
+            return key[:6] + "***" + key[-4:]
+    except:
+        return "Invalid"
+
+def print_ai_call_summary():
+    """打印AI调用汇总报告"""
+    with _call_records_lock:
+        if not _ai_call_records:
+            print("AI调用汇总：无调用记录")
+            return
+        
+        print("=" * 80)
+        print("🚀 AI调用汇总报告")
+        print("=" * 80)
+        
+        # 按API类型分组统计
+        gpt4o_calls = [r for r in _ai_call_records if r['api_type'] == 'GPT-4o-mini']
+        dashscope_calls = [r for r in _ai_call_records if r['api_type'] == 'DashScope']
+        
+        # GPT-4o-mini统计
+        if gpt4o_calls:
+            print(f"📊 GPT-4o-mini调用统计 (共{len(gpt4o_calls)}次):")
+            success_count = len([r for r in gpt4o_calls if r['status'] == 'success'])
+            failed_count = len([r for r in gpt4o_calls if r['status'] == 'failed'])
+            retry_count = len([r for r in gpt4o_calls if r['status'] == 'retry'])
+            total_duration = sum(r['duration_ms'] for r in gpt4o_calls)
+            avg_duration = total_duration / len(gpt4o_calls) if gpt4o_calls else 0
+            
+            print(f"  ✅ 成功: {success_count}次 | ❌ 失败: {failed_count}次 | 🔄 重试: {retry_count}次")
+            print(f"  ⏱️  总耗时: {total_duration:.1f}ms | 平均: {avg_duration:.1f}ms")
+            
+            # 失败原因统计
+            failure_reasons = {}
+            for record in gpt4o_calls:
+                if record['status'] in ['failed', 'retry'] and record['reason']:
+                    failure_reasons[record['reason']] = failure_reasons.get(record['reason'], 0) + 1
+            
+            if failure_reasons:
+                print(f"  🚨 失败原因分布: {failure_reasons}")
+            
+            # 详细调用记录
+            for i, record in enumerate(gpt4o_calls, 1):
+                status_icon = "✅" if record['status'] == 'success' else "❌" if record['status'] == 'failed' else "🔄"
+                reason_text = f" ({record['reason']})" if record['reason'] else ""
+                print(f"    {i:2d}. {status_icon} key={record['api_key']} duration={record['duration_ms']:.1f}ms attempt={record['attempt']}{reason_text}")
+        
+        # DashScope统计
+        if dashscope_calls:
+            print(f"\n📊 DashScope调用统计 (共{len(dashscope_calls)}次):")
+            success_count = len([r for r in dashscope_calls if r['status'] == 'success'])
+            failed_count = len([r for r in dashscope_calls if r['status'] == 'failed'])
+            retry_count = len([r for r in dashscope_calls if r['status'] == 'retry'])
+            total_duration = sum(r['duration_ms'] for r in dashscope_calls)
+            avg_duration = total_duration / len(dashscope_calls) if dashscope_calls else 0
+            
+            print(f"  ✅ 成功: {success_count}次 | ❌ 失败: {failed_count}次 | 🔄 重试: {retry_count}次")
+            print(f"  ⏱️  总耗时: {total_duration:.1f}ms | 平均: {avg_duration:.1f}ms")
+            
+            # 失败原因统计
+            failure_reasons = {}
+            for record in dashscope_calls:
+                if record['status'] in ['failed', 'retry'] and record['reason']:
+                    failure_reasons[record['reason']] = failure_reasons.get(record['reason'], 0) + 1
+            
+            if failure_reasons:
+                print(f"  🚨 失败原因分布: {failure_reasons}")
+            
+            # 详细调用记录
+            for i, record in enumerate(dashscope_calls, 1):
+                status_icon = "✅" if record['status'] == 'success' else "❌" if record['status'] == 'failed' else "🔄"
+                reason_text = f" ({record['reason']})" if record['reason'] else ""
+                print(f"    {i:2d}. {status_icon} key={record['api_key']} duration={record['duration_ms']:.1f}ms attempt={record['attempt']}{reason_text}")
+        
+        # 总体统计
+        total_calls = len(_ai_call_records)
+        total_success = len([r for r in _ai_call_records if r['status'] == 'success'])
+        total_failed = len([r for r in _ai_call_records if r['status'] == 'failed'])
+        total_retry = len([r for r in _ai_call_records if r['status'] == 'retry'])
+        overall_duration = sum(r['duration_ms'] for r in _ai_call_records)
+        success_rate = (total_success / total_calls * 100) if total_calls > 0 else 0
+        
+        print(f"\n📈 总体统计:")
+        print(f"  🎯 总调用: {total_calls}次 | 成功率: {success_rate:.1f}%")
+        print(f"  ✅ 成功: {total_success}次 | ❌ 失败: {total_failed}次 | 🔄 重试: {total_retry}次")
+        print(f"  ⏱️  总耗时: {overall_duration:.1f}ms")
+        
+        print("=" * 80)
+
+def clear_ai_call_records():
+    """清空AI调用记录"""
+    with _call_records_lock:
+        _ai_call_records.clear()
+
 def get_next_api_key():
     """获取下一个DALL-E API密钥（轮询方式）"""
     global _api_key_counter
@@ -256,13 +377,13 @@ def get_ai_design_suggestions(user_preferences=None, max_retries=3):
     
     # 重试机制：尝试多个API密钥
     for attempt in range(max_retries):
+        api_key = get_next_gpt4o_api_key()
+        api_start = time.time()
         try:
-            api_key = get_next_gpt4o_api_key()
             print(f"AI建议请求 attempt={attempt+1} key={api_key[:6]}...{api_key[-4:]}")
             client = OpenAI(api_key=api_key, base_url=GPT4O_MINI_BASE_URL)
             
             # 调用GPT-4o-mini
-            api_start = time.time()
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
@@ -270,7 +391,8 @@ def get_ai_design_suggestions(user_preferences=None, max_retries=3):
                     {"role": "user", "content": prompt}
                 ]
             )
-            api_duration = (time.time() - api_start) * 1000
+            api_end = time.time()
+            api_duration = (api_end - api_start) * 1000
             print(f"AI建议响应 duration={api_duration:.1f}ms")
             
             # 返回建议内容
@@ -288,6 +410,9 @@ def get_ai_design_suggestions(user_preferences=None, max_retries=3):
                         # 尝试直接解析整个内容
                         suggestion_json = json.loads(suggestion_text)
                     
+                    # 记录成功调用
+                    add_ai_call_record('GPT-4o-mini', 'gpt-4o-mini', api_key, api_start, api_end, 'success', attempt=attempt+1)
+                    
                     total_duration = (time.time() - start_time) * 1000
                     if retry_reasons:
                         print(f"AI建议成功 总耗时={total_duration:.1f}ms 重试={len(retry_reasons)}次 原因={retry_reasons}")
@@ -302,6 +427,7 @@ def get_ai_design_suggestions(user_preferences=None, max_retries=3):
                 
         except Exception as e:
             error_str = str(e)
+            api_end = time.time()
             retry_time = (time.time() - start_time) * 1000
             
             # 检查是否是401错误（无效API密钥）
@@ -309,15 +435,22 @@ def get_ai_design_suggestions(user_preferences=None, max_retries=3):
                 reason = "401无效密钥"
                 retry_reasons.append(f"{reason}@{retry_time:.0f}ms")
                 print(f"AI建议重试 attempt={attempt+1}/{max_retries} reason={reason} time={retry_time:.1f}ms")
+                
+                # 记录重试调用
                 if attempt < max_retries - 1:
+                    add_ai_call_record('GPT-4o-mini', 'gpt-4o-mini', api_key, api_start, api_end, 'retry', reason, attempt+1)
                     continue  # 尝试下一个密钥
                 else:
+                    # 记录最终失败调用
+                    add_ai_call_record('GPT-4o-mini', 'gpt-4o-mini', api_key, api_start, api_end, 'failed', reason, attempt+1)
                     print(f"AI建议失败 重试汇总={retry_reasons}")
                     return {"error": f"所有GPT-4o API密钥都无效，请检查密钥配置: {error_str}"}
             else:
                 # 其他错误，直接返回
                 reason = "其他错误"
                 retry_reasons.append(f"{reason}@{retry_time:.0f}ms")
+                # 记录失败调用
+                add_ai_call_record('GPT-4o-mini', 'gpt-4o-mini', api_key, api_start, api_end, 'failed', reason, attempt+1)
                 print(f"AI建议失败 重试汇总={retry_reasons} 最终错误={error_str}")
                 return {"error": f"Error getting AI design suggestions: {error_str}"}
     
@@ -420,6 +553,9 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
     
     # 尝试生成logo，最多重试max_retries次
     for attempt in range(max_retries):
+        # 获取下一个DashScope API密钥用于当前请求
+        current_api_key = get_next_dashscope_api_key()
+        api_start = time.time()
         try:
             # 为重试添加随机性，避免生成相同的图像
             if attempt > 0:
@@ -427,11 +563,8 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
             else:
                 retry_prompt = vector_style_prompt
             
-            # 获取下一个DashScope API密钥用于当前请求
-            current_api_key = get_next_dashscope_api_key()
             print(f'Logo生成请求 attempt={attempt+1} key={current_api_key[:6]}...{current_api_key[-4:]}')
             
-            api_start = time.time()
             rsp = ImageSynthesis.call(
                 api_key=current_api_key,
                 model="wanx2.0-t2i-turbo",
@@ -439,7 +572,8 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                 n=1,
                 size='768*768'
             )
-            api_duration = (time.time() - api_start) * 1000
+            api_end = time.time()
+            api_duration = (api_end - api_start) * 1000
             print(f'Logo生成响应 duration={api_duration:.1f}ms status={rsp.status_code}')
             
             if rsp.status_code == HTTPStatus.OK:
@@ -461,6 +595,9 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                         
                         # 验证生成的logo是否有效
                         if is_valid_logo(img_processed):
+                            # 记录成功调用
+                            add_ai_call_record('DashScope', 'wanx2.0-t2i-turbo', current_api_key, api_start, api_end, 'success', attempt=attempt+1)
+                            
                             total_duration = (time.time() - start_time) * 1000
                             if retry_reasons:
                                 print(f"Logo生成成功 总耗时={total_duration:.1f}ms 重试={len(retry_reasons)}次 原因={retry_reasons}")
@@ -473,9 +610,13 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                             retry_reasons.append(f"{reason}@{retry_time:.0f}ms")
                             print(f"Logo生成重试 attempt={attempt+1}/{max_retries} reason={reason} time={retry_time:.1f}ms")
                             if attempt < max_retries - 1:
+                                # 记录重试调用
+                                add_ai_call_record('DashScope', 'wanx2.0-t2i-turbo', current_api_key, api_start, api_end, 'retry', reason, attempt+1)
                                 time.sleep(3)  # 增加等待时间，适应Railway环境
                                 continue
                             else:
+                                # 记录最终失败但仍返回结果的调用
+                                add_ai_call_record('DashScope', 'wanx2.0-t2i-turbo', current_api_key, api_start, api_end, 'failed', reason, attempt+1)
                                 print(f"Logo验证失败但返回 重试汇总={retry_reasons}")
                                 return img_processed  # 即使验证失败，也返回最后的结果
                     else:
@@ -1178,6 +1319,9 @@ def show_high_recommendation_without_explanation():
                 st.session_state.generated_designs = []
                 
                 try:
+                    # 清空之前的AI调用记录
+                    clear_ai_call_records()
+                    
                     # 显示生成进度
                     with design_area.container():
                         st.markdown("### Generating T-shirt Designs")
@@ -1246,6 +1390,9 @@ def show_high_recommendation_without_explanation():
                     end_time = time.time()
                     generation_time = end_time - start_time
                     
+                    # 打印AI调用汇总报告
+                    print_ai_call_summary()
+                    
                     # 存储生成的设计
                     if designs:
                         st.session_state.generated_designs = designs
@@ -1258,6 +1405,8 @@ def show_high_recommendation_without_explanation():
                     st.rerun()
                 except Exception as e:
                     import traceback
+                    # 即使发生错误也打印AI调用汇总报告
+                    print_ai_call_summary()
                     message_area.error(f"An error occurred: {str(e)}")
                     st.error(traceback.format_exc())
     
