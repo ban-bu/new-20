@@ -28,12 +28,7 @@
             color: #6c757d;
         }
         
-        .hero-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 60px 0;
-            margin-bottom: 40px;
-        }
+
         
         .input-section {
             background: white;
@@ -56,13 +51,7 @@
             transform: scale(1.05);
         }
         
-        .feature-badge {
-            background: rgba(255,255,255,0.2);
-            padding: 8px 16px;
-            border-radius: 20px;
-            margin: 5px;
-            display: inline-block;
-        }
+
         
         .design-selector {
             background: #f8f9fa;
@@ -74,20 +63,11 @@
     </style>
 </head>
 <body>
-    <!-- Hero Section -->
-    <div class="hero-section">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-8 mx-auto text-center">
-                    <h1 class="display-4 mb-4">👕 AI Recommendation Experiment Platform</h1>
-                    <p class="lead mb-4">Study1-Let AI Design Your T-shirt</p>
-                    <div class="d-flex flex-wrap justify-content-center">
-                        <span class="feature-badge">AI Smart Recommendations</span>
-                        <span class="feature-badge">20 Design Options</span>
-                        <span class="feature-badge">Vector Logo Generation</span>
-                        <span class="feature-badge">Multiple Fabric Textures</span>
-                    </div>
-                </div>
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-12 text-center mb-4">
+                <h1>👕 AI Recommendation Experiment Platform</h1>
+                <h3 class="text-muted">Study1-Let AI Design Your T-shirt</h3>
             </div>
         </div>
     </div>
@@ -136,14 +116,14 @@
                             <strong>Describe your desired T-shirt design:</strong>
                         </label>
                         <div class="alert alert-light small mb-3">
-                            Enter three keywords to describe your ideal T-shirt design. Our AI will combine these features to create twenty unique design options for you.
+                            Enter one word to describe your ideal T-shirt design. Our AI will create twenty unique design options for you.
                         </div>
                         <input type="text" 
                                class="form-control form-control-lg" 
                                id="keywords" 
-                               placeholder="e.g., casual, nature, blue"
+                               placeholder="e.g., casual"
                                maxlength="100">
-                        <div class="form-text">Please enter at least one keyword</div>
+                        <div class="form-text">Please enter one keyword</div>
                     </div>
 
                     <!-- Generate Button -->
@@ -153,13 +133,7 @@
                         </button>
                     </div>
                     
-                    <!-- Regenerate Button (hidden initially) -->
-                    <div class="d-grid mt-3" id="regenerateSection" style="display: none;">
-                        <hr>
-                        <button class="btn btn-outline-primary" id="regenerateBtn" onclick="regenerateDesigns()">
-                            🔄 Generate New Designs
-                        </button>
-                    </div>
+
 
                     <!-- Progress Section -->
                     <div id="progressContainer" class="progress-container" style="display: none;">
@@ -204,7 +178,7 @@
             const keywords = document.getElementById('keywords').value.trim();
             
             if (!keywords) {
-                alert('Please enter at least one keyword');
+                alert('Please enter one keyword');
                 return;
             }
             
@@ -215,7 +189,6 @@
             document.getElementById('generateBtn').innerHTML = 'Generating...';
             document.getElementById('progressContainer').style.display = 'block';
             document.getElementById('designSelector').style.display = 'none';
-            document.getElementById('regenerateSection').style.display = 'none';
             document.getElementById('statsContainer').style.display = 'none';
             
             // Show generation state in preview
@@ -274,7 +247,6 @@
                         </small>
                     `;
                     document.getElementById('statsContainer').style.display = 'block';
-                    document.getElementById('regenerateSection').style.display = 'block';
                     
                 } else {
                     document.getElementById('loadingMessage').innerHTML = 
@@ -332,14 +304,7 @@
             document.getElementById('designSelect').value = index;
         }
 
-        function regenerateDesigns() {
-            // Reset state and regenerate
-            generatedDesigns = [];
-            currentDesignIndex = 0;
-            document.getElementById('designSelector').style.display = 'none';
-            document.getElementById('regenerateSection').style.display = 'none';
-            generateDesigns();
-        }
+
 
         // Allow Enter key to trigger generation
         document.getElementById('keywords').addEventListener('keypress', function(e) {

@@ -1446,7 +1446,7 @@ def show_high_recommendation_without_explanation():
         
         # Add brief description
         st.markdown(f"""
-        Enter three keywords to describe your ideal T-shirt design. Our AI will combine these features to create {DEFAULT_DESIGN_COUNT} unique design options for you.
+        Enter one word to describe your ideal T-shirt design. Our AI will create {DEFAULT_DESIGN_COUNT} unique design options for you.
         """)
         
         # Initialize keywords state
@@ -1455,9 +1455,9 @@ def show_high_recommendation_without_explanation():
         
         # Keywords input box
         keywords = st.text_input(
-            "Enter keywords for your design", 
+            "Enter one word for your design", 
             value=st.session_state.keywords, 
-            placeholder="e.g., casual, nature, blue", 
+            placeholder="e.g., casual", 
             key="input_keywords"
         )
         
@@ -1470,13 +1470,7 @@ def show_high_recommendation_without_explanation():
         progress_area = st.empty()
         message_area = st.empty()
         
-        # Generate new designs button
-        if len(st.session_state.generated_designs) > 0:
-            st.markdown("---")
-            if st.button("🔄 Generate New Designs", key="regenerate_design"):
-                st.session_state.generated_designs = []
-                st.session_state.selected_design_index = 0
-                st.rerun()
+
         
         # Generate design button event handling
         if generate_button:
@@ -1485,7 +1479,7 @@ def show_high_recommendation_without_explanation():
             
             # Check if keywords were entered
             if not keywords:
-                st.error("Please enter at least one keyword")
+                st.error("Please enter one keyword")
             else:
                 # Use user input keywords directly as prompt
                 user_prompt = keywords
