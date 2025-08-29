@@ -1326,11 +1326,11 @@ def generate_multiple_designs(design_prompt, count=1):
     return designs
 
 def show_high_recommendation_without_explanation():
-    st.title("👕 AI Recommendation Experiment Platform")
-    st.markdown("### Study1-Let AI Design Your T-shirt")
+    st.title("👕 AI T-shirt Design Generator")
+    st.markdown("### Let AI Design Your Perfect T-shirt")
     
-    # 显示实验组和设计数量信息
-    st.info(f"You are currently in Study1, and AI will generate {DEFAULT_DESIGN_COUNT} T-shirt design options for you")
+    # Display experiment group and design count information
+    st.info(f"AI will generate {DEFAULT_DESIGN_COUNT} unique T-shirt design options for you")
     
     # 初始化会话状态变量
     if 'user_prompt' not in st.session_state:
@@ -1386,167 +1386,154 @@ def show_high_recommendation_without_explanation():
             st.error(f"Error loading T-shirt image: {str(e)}")
             st.session_state.original_tshirt = None
     
-    # 创建两列布局
-    design_col, input_col = st.columns([3, 2])
+    # Create two-column layout
+    design_col, options_col = st.columns([3, 2])
     
     with design_col:
-        # 创建占位区域用于T恤设计展示
+        # Create placeholder area for T-shirt design display
         design_area = st.empty()
         
-        # 在设计区域显示当前状态的T恤设计
-        if st.session_state.final_design is not None:
+        # Display current T-shirt design state
+        if len(st.session_state.generated_designs) > 0:
             with design_area.container():
-                st.markdown("### Your Custom T-shirt Design")
-                st.image(st.session_state.final_design, use_column_width=True)
-        elif len(st.session_state.generated_designs) > 0:
-            with design_area.container():
-                st.markdown("### Generated Design Options")
+                st.markdown("### Your Selected T-shirt Design")
+                # Display the selected design
+                selected_design, selected_info = st.session_state.generated_designs[st.session_state.selected_design_index]
+                st.image(selected_design, use_column_width=True)
                 
-                # 创建多列来显示设计
-                design_count = len(st.session_state.generated_designs)
-                if design_count > 5:
-                    # 多行显示，每行最多5个
-                    rows_needed = (design_count + 4) // 5  # 向上取整
-                    for row in range(rows_needed):
-                        start_idx = row * 5
-                        end_idx = min(start_idx + 5, design_count)
-                        cols_in_row = end_idx - start_idx
-                        
-                        row_cols = st.columns(cols_in_row)
-                        for col_idx in range(cols_in_row):
-                            design_idx = start_idx + col_idx
-                            with row_cols[col_idx]:
-                                design, _ = st.session_state.generated_designs[design_idx]
-                                st.markdown(f"<p style='text-align:center;'>Design {design_idx+1}</p>", unsafe_allow_html=True)
-                                st.image(design, use_column_width=True)
-                elif design_count > 3:
-                    # 两行显示
-                    row1_cols = st.columns(min(3, design_count))
-                    row2_cols = st.columns(min(3, max(0, design_count - 3)))
-                    
-                    # 显示第一行
-                    for i in range(min(3, design_count)):
-                        with row1_cols[i]:
-                            design, _ = st.session_state.generated_designs[i]
-                            st.markdown(f"<p style='text-align:center;'>Design {i+1}</p>", unsafe_allow_html=True)
-                            # 显示设计
-                            st.image(design, use_column_width=True)
-                    
-                    # 显示第二行
-                    for i in range(3, design_count):
-                        with row2_cols[i-3]:
-                            design, _ = st.session_state.generated_designs[i]
-                            st.markdown(f"<p style='text-align:center;'>Design {i+1}</p>", unsafe_allow_html=True)
-                            # 显示设计
-                            st.image(design, use_column_width=True)
-                else:
-                    # 单行显示
-                    cols = st.columns(design_count)
-                    for i in range(design_count):
-                        with cols[i]:
-                            design, _ = st.session_state.generated_designs[i]
-                            st.markdown(f"<p style='text-align:center;'>Design {i+1}</p>", unsafe_allow_html=True)
-                            # 显示设计
-                            st.image(design, use_column_width=True)
-                
-
+                # Display design information
+                if selected_info and not isinstance(selected_info, dict) or "error" not in selected_info:
+                    color_info = selected_info.get("color", {})
+                    st.markdown(f"""
+                    <div style="background-color: #f0f2f6; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                        <h4 style="margin: 0 0 10px 0; color: #333;">Design Details</h4>
+                        <p style="margin: 5px 0;"><strong>Color:</strong> {color_info.get('name', 'Custom')} ({color_info.get('hex', '#FFFFFF')})</p>
+                        <p style="margin: 5px 0;"><strong>Fabric:</strong> {selected_info.get('fabric', 'Cotton')}</p>
+                        <p style="margin: 5px 0;"><strong>Logo:</strong> {selected_info.get('logo', 'No logo description available')}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
         else:
-            # 显示原始空白T恤
+            # Display original blank T-shirt
             with design_area.container():
                 st.markdown("### T-shirt Design Preview")
                 if st.session_state.original_tshirt is not None:
                     st.image(st.session_state.original_tshirt, use_column_width=True)
+                    st.markdown("""
+                    <div style="text-align: center; margin-top: 15px; padding: 10px; background-color: #f9f9f9; border-radius: 8px;">
+                        <p style="margin: 0; color: #666; font-style: italic;">Your custom design will appear here</p>
+                    </div>
+                    """, unsafe_allow_html=True)
                 else:
                     st.info("Could not load original T-shirt image, please refresh the page")
     
-    with input_col:
-        # 设计提示词和推荐级别选择区
+    with options_col:
+        # Design options and control area
         st.markdown("### Design Options")
         
-        # # 移除推荐级别选择按钮，改为显示当前级别信息
-        # if DEFAULT_DESIGN_COUNT == 1:
-        #     level_text = "Low - will generate 1 design"
-        # elif DEFAULT_DESIGN_COUNT == 3:
-        #     level_text = "Medium - will generate 3 designs"
-        # else:  # 5或其他值
-        #     level_text = "High - will generate 5 designs"
+        # Show design selector if designs are generated
+        if len(st.session_state.generated_designs) > 0:
+            st.markdown("#### Choose Your Favorite Design")
+            design_options = [f"Design {i+1}" for i in range(len(st.session_state.generated_designs))]
+            selected_option = st.selectbox(
+                "Select a design to view:",
+                options=design_options,
+                index=st.session_state.selected_design_index,
+                key="design_selector"
+            )
             
-        # st.markdown(f"""
-        # <div style="padding: 10px; background-color: #f0f2f6; border-radius: 5px; margin-bottom: 20px;">
-        # <p style="margin: 0; font-size: 16px; font-weight: bold;">Current recommendation level: {level_text}</p>
-        # </div>
-        # """, unsafe_allow_html=True)
+            # Update selected design index
+            new_index = design_options.index(selected_option)
+            if new_index != st.session_state.selected_design_index:
+                st.session_state.selected_design_index = new_index
+                st.rerun()
+            
+            st.markdown("---")
         
-        # 提示词输入区
-        st.markdown("#### Describe your desired T-shirt design:")
+        # Design prompt input area
+        st.markdown("#### Describe Your Ideal T-shirt Design")
         
-        # 添加简短说明
-        st.markdown("""
+        # Add brief description
+        st.markdown(f"""
         <div style="margin-bottom: 15px; padding: 10px; background-color: #f0f2f6; border-radius: 5px;">
-        <p style="margin: 0; font-size: 14px;">Enter three keywords to describe your ideal T-shirt design. 
-        Our AI will combine these features to create twenty unique design options for you.</p>
+        <p style="margin: 0; font-size: 14px;">Enter keywords to describe your ideal T-shirt design. 
+        Our AI will create {DEFAULT_DESIGN_COUNT} unique design options for you.</p>
         </div>
         """, unsafe_allow_html=True)
         
-        # 初始化关键词状态
+        # Initialize keywords state
         if 'keywords' not in st.session_state:
             st.session_state.keywords = ""
         
-        # 关键词输入框
+        # Keywords input box
         keywords = st.text_input("Enter keywords for your design", value=st.session_state.keywords, 
                               placeholder="e.g., casual, nature, blue", key="input_keywords")
         
-        # 生成设计按钮
+        # Generate design button
         generate_col = st.empty()
         with generate_col:
-            generate_button = st.button("🎨 Generate T-shirt Design", key="generate_design")
+            generate_button = st.button("🎨 Generate T-shirt Designs", key="generate_design")
         
-        # 创建进度和消息区域在输入框下方
+        # Create progress and message areas below input box
         progress_area = st.empty()
         message_area = st.empty()
         
-        # 生成设计按钮事件处理
+        # Generate new designs button
+        if len(st.session_state.generated_designs) > 0:
+            st.markdown("---")
+            if st.button("🔄 Generate New Designs", key="regenerate_design"):
+                st.session_state.generated_designs = []
+                st.session_state.selected_design_index = 0
+                st.rerun()
+        
+        # Generate design button event handling
         if generate_button:
-            # 保存用户输入的关键词
+            # Save user input keywords
             st.session_state.keywords = keywords
             
-            # 检查是否输入了关键词
+            # Check if keywords were entered
             if not keywords:
                 st.error("Please enter at least one keyword")
             else:
-                # 直接使用用户输入的关键词作为提示词
+                # Use user input keywords directly as prompt
                 user_prompt = keywords
                 
-                # 保存用户输入
+                # Save user input
                 st.session_state.user_prompt = user_prompt
                 
-                # 使用固定的设计数量
+                # Use fixed design count
                 design_count = DEFAULT_DESIGN_COUNT
                 
-                # 清空之前的设计
+                # Clear previous designs
                 st.session_state.final_design = None
                 st.session_state.generated_designs = []
+                st.session_state.selected_design_index = 0
                 
                 try:
-                    # 清空之前的AI调用记录
+                    # Clear previous AI call records
                     clear_ai_call_records()
                     
-                    # 显示生成进度
+                    # Show generation progress
                     with design_area.container():
-                        st.markdown("### Generating T-shirt Designs")
+                        st.markdown("### Generating T-shirt Designs...")
                         if st.session_state.original_tshirt is not None:
                             st.image(st.session_state.original_tshirt, use_column_width=True)
+                        st.markdown("""
+                        <div style="text-align: center; margin-top: 15px; padding: 15px; background-color: #e8f4f8; border-radius: 8px; border-left: 4px solid #1f77b4;">
+                            <p style="margin: 0; color: #1f77b4; font-weight: bold;">🎨 AI is creating your designs...</p>
+                            <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">Please wait while we generate your custom T-shirt options</p>
+                        </div>
+                        """, unsafe_allow_html=True)
                     
-                    # 创建进度条和状态消息在输入框下方
+                    # Create progress bar and status message below input box
                     progress_bar = progress_area.progress(0)
-                    message_area.info(f"AI is generating {design_count} unique design options for you. This may take about 1-3 minutes (maximum concurrency: 20 threads + 40 API keys total). Please do not refresh the page or close the browser. Thank you for your patience! ♪(･ω･)ﾉ")
-                    # 记录开始时间
+                    message_area.info(f"🤖 AI is generating {design_count} unique design options for you. This may take 1-3 minutes. Please do not refresh the page. Thank you for your patience! ✨")
+                    # Record start time
                     start_time = time.time()
                     
-                    # 收集生成的设计
+                    # Collect generated designs
                     designs = []
                     
-                    # 生成单个设计的安全函数
+                    # Safe function for generating single design
                     def generate_single_safely(design_index):
                         try:
                             return generate_complete_design(user_prompt, design_index)
@@ -1554,32 +1541,32 @@ def show_high_recommendation_without_explanation():
                             message_area.error(f"Error generating design: {str(e)}")
                             return None, {"error": f"Failed to generate design: {str(e)}"}
                     
-                    # 对于单个设计，直接生成
+                    # For single design, generate directly
                     if design_count == 1:
                         design, info = generate_single_safely(0)
                         if design:
                             designs.append((design, info))
                         progress_bar.progress(100)
-                        message_area.success("Design generation complete!")
+                        message_area.success("✅ Design generation complete!")
                     else:
-                        # 为多个设计使用并行处理
+                        # Use parallel processing for multiple designs
                         completed_count = 0
                         
-                        # 进度更新函数
+                        # Progress update function
                         def update_progress():
                             nonlocal completed_count
                             completed_count += 1
                             progress = int(100 * completed_count / design_count)
                             progress_bar.progress(progress)
-                            message_area.info(f"Generated {completed_count}/{design_count} designs...")
+                            message_area.info(f"🎨 Generated {completed_count}/{design_count} designs...")
                         
-                        # 使用线程池并行生成多个设计，现在支持最高并发
-                        max_workers = min(design_count, 20)  # 增加最大线程数为20，利用更多API密钥
+                        # Use thread pool for parallel generation with maximum concurrency
+                        max_workers = min(design_count, 20)  # Increased max threads to 20, utilizing more API keys
                         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                            # 提交所有任务
+                            # Submit all tasks
                             future_to_id = {executor.submit(generate_single_safely, i): i for i in range(design_count)}
                             
-                            # 收集结果
+                            # Collect results
                             for future in concurrent.futures.as_completed(future_to_id):
                                 design_id = future_to_id[future]
                                 try:
@@ -1587,36 +1574,36 @@ def show_high_recommendation_without_explanation():
                                     if design:
                                         designs.append((design, info))
                                 except Exception as e:
-                                    message_area.error(f"Design {design_id} generation failed: {str(e)}")
+                                    message_area.error(f"Design {design_id+1} generation failed: {str(e)}")
                                 
-                                # 更新进度
+                                # Update progress
                                 update_progress()
                         
-                        # 按照ID排序设计
+                        # Sort designs by ID
                         designs.sort(key=lambda x: x[1].get("design_index", 0) if x[1] and "design_index" in x[1] else 0)
                     
-                    # 记录结束时间
+                    # Record end time
                     end_time = time.time()
                     generation_time = end_time - start_time
                     
-                    # 打印AI调用汇总报告
+                    # Print AI call summary report
                     print_ai_call_summary()
                     
-                    # 存储生成的设计
+                    # Store generated designs
                     if designs:
                         st.session_state.generated_designs = designs
                         st.session_state.selected_design_index = 0
-                        message_area.success(f"Generated {len(designs)} designs in {generation_time:.1f} seconds!")
+                        message_area.success(f"🎉 Successfully generated {len(designs)} unique designs in {generation_time:.1f} seconds!")
                     else:
-                        message_area.error("Could not generate any designs. Please try again.")
+                        message_area.error("❌ Could not generate any designs. Please try again with different keywords.")
                     
-                    # 重新渲染设计区域以显示新生成的设计
+                    # Re-render design area to show newly generated designs
                     st.rerun()
                 except Exception as e:
                     import traceback
-                    # 即使发生错误也打印AI调用汇总报告
+                    # Print AI call summary report even if error occurs
                     print_ai_call_summary()
-                    message_area.error(f"An error occurred: {str(e)}")
+                    message_area.error(f"❌ An error occurred: {str(e)}")
                     st.error(traceback.format_exc())
     
 
