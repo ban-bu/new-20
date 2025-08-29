@@ -456,7 +456,7 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                 model="wanx2.0-t2i-turbo",
                 prompt=retry_prompt,
                 n=1,
-                size='512*512'
+                size='768*768'
             )
             print('DashScope响应: %s' % rsp)
             
