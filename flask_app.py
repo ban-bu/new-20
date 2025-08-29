@@ -93,7 +93,12 @@ DASHSCOPE_API_KEYS = [
     "sk-7d8815e45a164bc09ed8f2a346ed00e1",
     "sk-39e94c32f421425b9221eae1b7f68918",
     "sk-551f4ccb2ad647a6834865732d42edcb",
-    "sk-cdbe9b620dc04666aaf50fd44d8a756e"
+    "sk-cdbe9b620dc04666aaf50fd44d8a756e",
+    "sk-413b21a29e824d52ba3c59ae14ba7788",
+    "sk-aebba67427b7494fa2e4f6c411dac362",
+    "sk-b894e6b45ab14f63b578157f869b8bb4",
+    "sk-dc84e80f08a84114a1e97a2e755c43d6",
+    "sk-4ae00d04248d48d581f4ce316837fe87"
 ]
 
 # API密钥轮询计数器
@@ -411,7 +416,7 @@ def is_valid_logo(image, min_colors=2, min_non_transparent_pixels=300, max_domin
 def generate_vector_image(prompt, background_color=None, max_retries=3):
     """Generate a vector-style logo with transparent background using DashScope API with validation and retry
     
-    使用轮询机制从15个DashScope API密钥中选择，支持高并发并行生成提高效率
+    使用轮询机制从20个DashScope API密钥中选择，支持高并发并行生成提高效率
     """
     
     # 构建矢量图logo专用的提示词
@@ -420,16 +425,16 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
     1. 简洁的矢量图风格，线条清晰、闭合、边缘净
     2. 必须是透明背景(透明PNG)，无背板、无渐变底、无阴影
     3. 专业的logo设计，适合印刷到T恤，避免过多细碎噪点
-    4. 高对比度，颜色鲜明，避免大面积纯白覆盖
+    4. 极高对比度，颜色饱和鲜明，深色轮廓+亮色填充，避免浅色和半透明
     5. 几何形状简洁，不要过于复杂，中心构图
     6. 不要包含文字或字母
     7. 不要显示T恤或服装模型
     8. 纯粹的图形标志设计
-    9. 矢量插画风格，扁平化设计，实心色块+少量描边
+    9. 矢量插画风格，扁平化设计，实心色块+黑色描边
     10. 背景必须完全透明，不要留边缘白边/灰边
-    11. 输出PNG透明背景图标，尺寸1024x1024
+    11. 输出PNG透明背景图标，尺寸768x768
     12. 图标应独立，无任何背景元素，不要样机/预览
-    13. 颜色至少两种，避免单色纯填充；保持清晰边界"""
+    13. 颜色至少三种，包含深色边框，确保在任何背景上都清晰可见"""
     
     # 如果DashScope不可用，直接返回None
     if not DASHSCOPE_AVAILABLE:
@@ -471,9 +476,9 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                         img = Image.open(BytesIO(image_resp.content)).convert("RGBA")
                         print(f"DashScope生成的logo尺寸: {img.size}")
                         
-                        # 后处理：将白色背景转换为透明（使用更高的阈值）
-                        # 将近白背景快速透明化，减少“白边”导致的验证失败
-                        img_processed = make_background_transparent(img, threshold=120)
+                        # 后处理：将白色背景转换为透明（使用适中的阈值）
+                        # 避免过度透明化导致logo内容丢失
+                        img_processed = make_background_transparent(img, threshold=80)
                         print(f"背景透明化处理完成")
                         
                         # 验证生成的logo是否有效
@@ -505,7 +510,14 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                 
         except Exception as e:
             print(f"第{attempt + 1}次DashScope调用出错: {e}")
-            if attempt < max_retries - 1:
+            # 针对429错误（限流）增加更长延迟
+            if "429" in str(e) or "Throttling.RateQuota" in str(e):
+                if attempt < max_retries - 1:
+                    retry_delay = 5 + attempt * 3  # 5s, 8s, 11s递增延迟
+                    print(f"检测到限流错误，等待{retry_delay}秒后重试...")
+                    time.sleep(retry_delay)
+                    continue
+            elif attempt < max_retries - 1:
                 print("快速重试...")
                 time.sleep(1)
                 continue
@@ -715,8 +727,9 @@ def generate_complete_design(design_prompt, variation_id=None):
 
 def generate_single_design(design_index, design_prompt):
     try:
-        # 添加小的固定延迟，避免所有线程同时发起API请求
-        time.sleep(0.2)
+        # 添加随机延迟，避免所有线程同时发起API请求
+        random_delay = 0.3 + (design_index * 0.2) + (random.random() * 0.5)
+        time.sleep(random_delay)
         
         # 为每个设计添加轻微的提示词变化，确保设计多样性
         design_variations = [

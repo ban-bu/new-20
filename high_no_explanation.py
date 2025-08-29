@@ -87,7 +87,12 @@ DASHSCOPE_API_KEYS = [
     "sk-7d8815e45a164bc09ed8f2a346ed00e1",
     "sk-39e94c32f421425b9221eae1b7f68918",
     "sk-551f4ccb2ad647a6834865732d42edcb",
-    "sk-cdbe9b620dc04666aaf50fd44d8a756e"
+    "sk-cdbe9b620dc04666aaf50fd44d8a756e",
+    "sk-413b21a29e824d52ba3c59ae14ba7788",
+    "sk-aebba67427b7494fa2e4f6c411dac362",
+    "sk-b894e6b45ab14f63b578157f869b8bb4",
+    "sk-dc84e80f08a84114a1e97a2e755c43d6",
+    "sk-4ae00d04248d48d581f4ce316837fe87"
 ]
 
 # API密钥轮询计数器
@@ -279,7 +284,7 @@ def get_ai_design_suggestions(user_preferences=None):
     except Exception as e:
         return {"error": f"Error getting AI design suggestions: {str(e)}"}
 
-def is_valid_logo(image, min_colors=3, min_non_transparent_pixels=1000):
+def is_valid_logo(image, min_colors=2, min_non_transparent_pixels=300, max_dominant_ratio=0.985):
     """检查生成的logo是否有效（不是纯色或空白图像）"""
     if image is None:
         return False
@@ -327,9 +332,9 @@ def is_valid_logo(image, min_colors=3, min_non_transparent_pixels=1000):
         most_common_color_count = max(color_counts.values())
         dominant_color_ratio = most_common_color_count / len(non_transparent_pixels)
         
-        # 如果单一颜色占比超过95%，认为是无效logo
-        if dominant_color_ratio > 0.95:
-            print(f"Logo验证失败：主要颜色占比过高 ({dominant_color_ratio:.2%})")
+        # 如果单一颜色占比超过阈值，认为是无效logo
+        if dominant_color_ratio > max_dominant_ratio:
+            print(f"Logo验证失败：主要颜色占比过高 ({dominant_color_ratio:.2%} > {max_dominant_ratio:.2%})")
             return False
         
         print(f"Logo验证通过：{len(unique_colors)}种颜色，{len(non_transparent_pixels)}个非透明像素，主要颜色占比{dominant_color_ratio:.2%}")
@@ -342,25 +347,25 @@ def is_valid_logo(image, min_colors=3, min_non_transparent_pixels=1000):
 def generate_vector_image(prompt, background_color=None, max_retries=3):
     """Generate a vector-style logo with transparent background using DashScope API with validation and retry
     
-    使用轮询机制从15个DashScope API密钥中选择，支持高并发并行生成提高效率
+    使用轮询机制从20个DashScope API密钥中选择，支持高并发并行生成提高效率
     """
     
     # 构建矢量图logo专用的提示词
     vector_style_prompt = f"""创建一个矢量风格的logo设计: {prompt}
     要求:
-    1. 简洁的矢量图风格，线条清晰
-    2. 必须是透明背景，不能有任何白色或彩色背景
-    3. 专业的logo设计，适合印刷到T恤上
-    4. 高对比度，颜色鲜明
-    5. 几何形状简洁，不要过于复杂
+    1. 简洁的矢量图风格，线条清晰、闭合、边缘净
+    2. 必须是透明背景(透明PNG)，无背板、无渐变底、无阴影
+    3. 专业的logo设计，适合印刷到T恤，避免过多细碎噪点
+    4. 极高对比度，颜色饱和鲜明，深色轮廓+亮色填充，避免浅色和半透明
+    5. 几何形状简洁，不要过于复杂，中心构图
     6. 不要包含文字或字母
     7. 不要显示T恤或服装模型
     8. 纯粹的图形标志设计
-    9. 矢量插画风格，扁平化设计
-    10. 重要：背景必须完全透明，不能有任何颜色填充
-    11. 请生成PNG格式的透明背景图标
-    12. 图标应该是独立的，没有任何背景元素
-    13. 确保logo有丰富的细节和多种颜色，避免纯色设计"""
+    9. 矢量插画风格，扁平化设计，实心色块+黑色描边
+    10. 背景必须完全透明，不要留边缘白边/灰边
+    11. 输出PNG透明背景图标，尺寸768x768
+    12. 图标应独立，无任何背景元素，不要样机/预览
+    13. 颜色至少三种，包含深色边框，确保在任何背景上都清晰可见"""
     
     # 如果DashScope不可用，直接返回None
     if not DASHSCOPE_AVAILABLE:
@@ -400,8 +405,9 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                         img = Image.open(BytesIO(image_resp.content)).convert("RGBA")
                         print(f"DashScope生成的logo尺寸: {img.size}")
                         
-                        # 后处理：将白色背景转换为透明（使用更高的阈值）
-                        img_processed = make_background_transparent(img, threshold=120)
+                        # 后处理：将白色背景转换为透明（使用适中的阈值）
+                        # 避免过度透明化导致logo内容丢失
+                        img_processed = make_background_transparent(img, threshold=80)
                         print(f"背景透明化处理完成")
                         
                         # 验证生成的logo是否有效
@@ -432,7 +438,14 @@ def generate_vector_image(prompt, background_color=None, max_retries=3):
                 
         except Exception as e:
             print(f"第{attempt + 1}次DashScope调用出错: {e}")
-            if attempt < max_retries - 1:
+            # 针对429错误（限流）增加更长延迟
+            if "429" in str(e) or "Throttling.RateQuota" in str(e):
+                if attempt < max_retries - 1:
+                    retry_delay = 8 + attempt * 4  # 8s, 12s, 16s递增延迟
+                    print(f"检测到限流错误，等待{retry_delay}秒后重试...")
+                    time.sleep(retry_delay)
+                    continue
+            elif attempt < max_retries - 1:
                 print("准备重试...")
                 time.sleep(5)  # 增加等待时间，适应Railway环境
                 continue
@@ -1074,7 +1087,7 @@ def show_high_recommendation_without_explanation():
                     
                     # 创建进度条和状态消息在输入框下方
                     progress_bar = progress_area.progress(0)
-                    message_area.info(f"AI is generating {design_count} unique design options for you. This may take about 1-3 minutes (maximum concurrency: 20 threads + 35 API keys total). Please do not refresh the page or close the browser. Thank you for your patience! ♪(･ω･)ﾉ")
+                    message_area.info(f"AI is generating {design_count} unique design options for you. This may take about 1-3 minutes (maximum concurrency: 20 threads + 40 API keys total). Please do not refresh the page or close the browser. Thank you for your patience! ♪(･ω･)ﾉ")
                     # 记录开始时间
                     start_time = time.time()
                     
