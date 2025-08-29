@@ -1326,49 +1326,11 @@ def generate_multiple_designs(design_prompt, count=1):
     return designs
 
 def show_high_recommendation_without_explanation():
-    # Custom CSS for better styling
-    st.markdown("""
-    <style>
-    .main-title {
-        text-align: center;
-        color: #1f77b4;
-        font-size: 2.5rem;
-        font-weight: bold;
-        margin-bottom: 0.5rem;
-    }
-    .subtitle {
-        text-align: center;
-        color: #666;
-        font-size: 1.2rem;
-        margin-bottom: 2rem;
-    }
-    .info-box {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 15px;
-        border-radius: 10px;
-        text-align: center;
-        margin-bottom: 20px;
-        font-weight: 500;
-    }
-    .design-section {
-        background-color: #fafafa;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    st.markdown('<h1 class="main-title">👕 AI T-shirt Design Generator</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="subtitle">Let AI Design Your Perfect T-shirt</p>', unsafe_allow_html=True)
+    st.title("👕 AI Recommendation Experiment Platform")
+    st.markdown("### Study1-Let AI Design Your T-shirt")
     
     # Display experiment group and design count information
-    st.markdown(f"""
-    <div class="info-box">
-        ✨ AI will generate {DEFAULT_DESIGN_COUNT} unique T-shirt design options for you
-    </div>
-    """, unsafe_allow_html=True)
+    st.info(f"You are currently in Study1, and AI will generate {DEFAULT_DESIGN_COUNT} T-shirt design options for you")
     
     # 初始化会话状态变量
     if 'user_prompt' not in st.session_state:
@@ -1434,75 +1396,34 @@ def show_high_recommendation_without_explanation():
         # Display current T-shirt design state
         if len(st.session_state.generated_designs) > 0:
             with design_area.container():
-                st.markdown("""
-                <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin-bottom: 20px;">
-                <h3 style="color: #495057; margin: 0 0 15px 0; text-align: center; font-weight: 600;">✨ Your Custom T-shirt Design</h3>
-                </div>
-                """, unsafe_allow_html=True)
+                st.markdown("### Your Custom T-shirt Design")
                 
                 # Display the selected design
                 selected_design, selected_info = st.session_state.generated_designs[st.session_state.selected_design_index]
-                
-                # Add a stylish frame around the image
-                st.markdown("""
-                <div style="background: white; padding: 15px; border-radius: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); margin: 10px auto; max-width: 90%;">
-                """, unsafe_allow_html=True)
-                
                 st.image(selected_design, use_column_width=True)
-                
-                st.markdown("</div>", unsafe_allow_html=True)
                 
                 # Add design number indicator
                 current_design = st.session_state.selected_design_index + 1
                 total_designs = len(st.session_state.generated_designs)
-                st.markdown(f"""
-                <div style="text-align: center; margin-top: 15px; padding: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 25px; color: white; font-weight: 600;">
-                    Design {current_design} of {total_designs}
-                </div>
-                """, unsafe_allow_html=True)
+                st.markdown(f"**Design {current_design} of {total_designs}**")
         else:
             # Display original blank T-shirt
             with design_area.container():
-                st.markdown("""
-                <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 20px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin-bottom: 20px;">
-                <h3 style="color: #495057; margin: 0 0 15px 0; text-align: center; font-weight: 600;">👕 T-shirt Design Preview</h3>
-                </div>
-                """, unsafe_allow_html=True)
+                st.markdown("### T-shirt Design Preview")
                 
                 if st.session_state.original_tshirt is not None:
-                    # Add a stylish frame around the original image
-                    st.markdown("""
-                    <div style="background: white; padding: 15px; border-radius: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); margin: 10px auto; max-width: 90%;">
-                    """, unsafe_allow_html=True)
-                    
                     st.image(st.session_state.original_tshirt, use_column_width=True)
-                    
-                    st.markdown("</div>", unsafe_allow_html=True)
-                    
-                    st.markdown("""
-                    <div style="text-align: center; margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #e8f4f8 0%, #cce7f0 100%); border-radius: 15px; border: 2px dashed #1f77b4;">
-                        <p style="margin: 0; color: #1f77b4; font-weight: 600; font-size: 16px;">🎨 Your custom design will appear here</p>
-                        <p style="margin: 5px 0 0 0; color: #5a6c7d; font-size: 14px;">Enter keywords and click generate to start</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.info("🎨 Your custom design will appear here")
                 else:
                     st.error("Could not load original T-shirt image, please refresh the page")
     
     with options_col:
         # Design options and control area
-        st.markdown("""
-        <div style="background-color: #fafafa; padding: 20px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-        <h3 style="color: #333; margin-top: 0; margin-bottom: 20px; text-align: center;">🎨 Design Options</h3>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("### Design Options")
         
         # Show design selector if designs are generated
         if len(st.session_state.generated_designs) > 0:
-            st.markdown("""
-            <div style="background-color: #e8f4f8; padding: 15px; border-radius: 10px; margin: 15px 0; border-left: 4px solid #1f77b4;">
-            <h4 style="color: #1f77b4; margin: 0 0 10px 0;">✨ Choose Your Favorite Design</h4>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown("#### Choose Your Favorite Design")
             
             design_options = [f"Design {i+1}" for i in range(len(st.session_state.generated_designs))]
             selected_option = st.selectbox(
@@ -1521,21 +1442,12 @@ def show_high_recommendation_without_explanation():
             st.markdown("---")
         
         # Design prompt input area
-        st.markdown("""
-        <div style="background-color: #f0f8e8; padding: 15px; border-radius: 10px; margin: 15px 0; border-left: 4px solid #28a745;">
-        <h4 style="color: #28a745; margin: 0 0 10px 0;">💭 Describe Your Ideal T-shirt Design</h4>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("#### Describe your desired T-shirt design:")
         
         # Add brief description
         st.markdown(f"""
-        <div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 10px; border: 1px solid #dee2e6;">
-        <p style="margin: 0; font-size: 14px; color: #495057; text-align: center; line-height: 1.5;">
-        💡 Enter keywords to describe your ideal T-shirt design.<br>
-        Our AI will create <strong>{DEFAULT_DESIGN_COUNT}</strong> unique design options for you.
-        </p>
-        </div>
-        """, unsafe_allow_html=True)
+        Enter three keywords to describe your ideal T-shirt design. Our AI will combine these features to create {DEFAULT_DESIGN_COUNT} unique design options for you.
+        """)
         
         # Initialize keywords state
         if 'keywords' not in st.session_state:
@@ -1546,37 +1458,13 @@ def show_high_recommendation_without_explanation():
             "Enter keywords for your design", 
             value=st.session_state.keywords, 
             placeholder="e.g., casual, nature, blue", 
-            key="input_keywords",
-            help="💡 Tip: Use descriptive words like colors, styles, or themes"
+            key="input_keywords"
         )
-        
-        # Generate design button with custom styling
-        st.markdown("""
-        <style>
-        .stButton > button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 25px;
-            padding: 0.75rem 2rem;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            width: 100%;
-            margin: 10px 0;
-        }
-        .stButton > button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
-        }
-        </style>
-        """, unsafe_allow_html=True)
         
         # Generate design button
         generate_col = st.empty()
         with generate_col:
-            generate_button = st.button("🎨 Generate T-shirt Designs", key="generate_design", type="primary")
+            generate_button = st.button("🎨 Generate T-shirt Design", key="generate_design")
         
         # Create progress and message areas below input box
         progress_area = st.empty()
@@ -1584,13 +1472,8 @@ def show_high_recommendation_without_explanation():
         
         # Generate new designs button
         if len(st.session_state.generated_designs) > 0:
-            st.markdown("""
-            <div style="margin: 20px 0; text-align: center;">
-            <hr style="border: 1px solid #e0e0e0; margin: 20px 0;">
-            </div>
-            """, unsafe_allow_html=True)
-            
-            if st.button("🔄 Generate New Designs", key="regenerate_design", help="Create completely new designs with the same keywords"):
+            st.markdown("---")
+            if st.button("🔄 Generate New Designs", key="regenerate_design"):
                 st.session_state.generated_designs = []
                 st.session_state.selected_design_index = 0
                 st.rerun()
@@ -1624,19 +1507,13 @@ def show_high_recommendation_without_explanation():
                     
                     # Show generation progress
                     with design_area.container():
-                        st.markdown("### Generating T-shirt Designs...")
+                        st.markdown("### Generating T-shirt Designs")
                         if st.session_state.original_tshirt is not None:
                             st.image(st.session_state.original_tshirt, use_column_width=True)
-                        st.markdown("""
-                        <div style="text-align: center; margin-top: 15px; padding: 15px; background-color: #e8f4f8; border-radius: 8px; border-left: 4px solid #1f77b4;">
-                            <p style="margin: 0; color: #1f77b4; font-weight: bold;">🎨 AI is creating your designs...</p>
-                            <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">Please wait while we generate your custom T-shirt options</p>
-                        </div>
-                        """, unsafe_allow_html=True)
                     
                     # Create progress bar and status message below input box
                     progress_bar = progress_area.progress(0)
-                    message_area.info(f"🤖 AI is generating {design_count} unique design options for you. This may take 1-3 minutes. Please do not refresh the page. Thank you for your patience! ✨")
+                    message_area.info(f"AI is generating {design_count} unique design options for you. This may take about 1-3 minutes. Please do not refresh the page or close the browser. Thank you for your patience!")
                     # Record start time
                     start_time = time.time()
                     
@@ -1657,7 +1534,7 @@ def show_high_recommendation_without_explanation():
                         if design:
                             designs.append((design, info))
                         progress_bar.progress(100)
-                        message_area.success("✅ Design generation complete!")
+                        message_area.success("Design generation complete!")
                     else:
                         # Use parallel processing for multiple designs
                         completed_count = 0
@@ -1668,7 +1545,7 @@ def show_high_recommendation_without_explanation():
                             completed_count += 1
                             progress = int(100 * completed_count / design_count)
                             progress_bar.progress(progress)
-                            message_area.info(f"🎨 Generated {completed_count}/{design_count} designs...")
+                            message_area.info(f"Generated {completed_count}/{design_count} designs...")
                         
                         # Use thread pool for parallel generation with maximum concurrency
                         max_workers = min(design_count, 20)  # Increased max threads to 20, utilizing more API keys
@@ -1703,9 +1580,9 @@ def show_high_recommendation_without_explanation():
                     if designs:
                         st.session_state.generated_designs = designs
                         st.session_state.selected_design_index = 0
-                        message_area.success(f"🎉 Successfully generated {len(designs)} unique designs in {generation_time:.1f} seconds!")
+                        message_area.success(f"Generated {len(designs)} designs in {generation_time:.1f} seconds!")
                     else:
-                        message_area.error("❌ Could not generate any designs. Please try again with different keywords.")
+                        message_area.error("Could not generate any designs. Please try again.")
                     
                     # Re-render design area to show newly generated designs
                     st.rerun()
@@ -1713,7 +1590,7 @@ def show_high_recommendation_without_explanation():
                     import traceback
                     # Print AI call summary report even if error occurs
                     print_ai_call_summary()
-                    message_area.error(f"❌ An error occurred: {str(e)}")
+                    message_area.error(f"An error occurred: {str(e)}")
                     st.error(traceback.format_exc())
     
 
